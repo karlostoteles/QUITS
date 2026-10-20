@@ -158,6 +158,7 @@ try {
   await guest.click('[data-act=manual]');
   await guest.waitForSelector('.manual .cprow');
   const rows = await guest.$$eval('.manual .cprow b', bs => bs.map(b => b.textContent));
+  log('open-in-wallet link:', ((await guest.getAttribute('.manual .open-wallet', 'href')) || 'none').slice(0, 60) + '…');
   const amount = rows[1].split(' ')[0], memo = rows[2];
   log('guest owes', rows[1], 'memo', JSON.stringify(memo));
   await guest.shot('05-pay-manual');

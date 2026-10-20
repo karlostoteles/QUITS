@@ -1218,7 +1218,7 @@ function showManual(ctx) {
     <div class="cprow"><div><small>Amount</small><b>${esc(it.amount)} ${esc(it.asset)}</b></div><button type="button" data-act="copy" data-v="${esc(it.amount)}"><span>Copy</span></button></div>
     <div class="cprow"><div><small>Memo (the code)</small><b>${esc(it.memo)}</b></div><button type="button" data-act="copy" data-v="${esc(it.memo)}"><span>Copy</span></button></div>
     <p class="warnbox">Don’t forget the memo. It’s how Quits knows the payment is yours. ${it.asset} must be the one issued by Circle.</p>
-    ${isMobile ? '' : `<div class="qr" title="Scan with the wallet on your phone">${qrSVG(uri, 'L')}</div>`}
+    ${isMobile ? `<a class="btn ghost sm open-wallet" href="${esc(uri)}">${ic('ext', 16)}Open in my wallet app</a><small class="hint">Works with wallets that open Stellar payment links. If nothing opens, copy the three lines above.</small>` : `<div class="qr" title="Scan with the wallet on your phone">${qrSVG(uri, 'L')}</div>`}
     <div class="waiting"><span class="spin"></span><span>Waiting for your payment on Stellar…</span></div>
     <button class="btn ghost" type="button" data-act="check">I’ve sent it</button>`;
   if (!RM) gsap.from(box, { y: 14, opacity: 0, duration: .4, ease: 'power2.out' });
