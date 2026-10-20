@@ -2,7 +2,7 @@
 
 Split the bill at the table. One person pays; everyone else taps what they had and pays them back from their own wallet, on Stellar.
 
-**Live:** https://quits.aircade.xyz (Stellar testnet until the mainnet launch on 24 Oct 2026)
+**Live:** https://quits.aircade.xyz, on Stellar mainnet
 
 ## The problem
 

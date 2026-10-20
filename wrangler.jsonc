@@ -24,7 +24,7 @@
     { "tag": "v2", "new_sqlite_classes": ["UserDO"] }
   ],
   "vars": {
-    "NETWORK": "testnet",
+    "NETWORK": "public",
     "CLAUDE_MODEL": "claude-haiku-5-5",
     "AI_DAILY_MAX": "400",
     "WC_PROJECT_ID": "0e3ce5dbd44550d03e1866db08076118",

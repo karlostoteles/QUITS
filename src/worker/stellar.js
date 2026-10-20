@@ -9,6 +9,10 @@ async function hz(net, path) {
 }
 
 const okAsset = (net, rec, asset) => rec.asset_code === asset && rec.asset_issuer === NETWORKS[net].assets[asset];
+// Memos typed by hand come back with other spacing or case ("quits cant7da p2"): compare letters and digits only.
+const normMemo = m => String(m || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// The amount was fixed when the guest started paying; allow one cent for rounding in wallets.
+const enough = (amount, min) => Number(amount) >= Number(min) - 0.0101;
 const PAY_TYPES = new Set(['payment', 'path_payment_strict_receive', 'path_payment_strict_send']);
 
 // A transaction the guest's wallet just submitted: does it pay `to` at least `min` of `asset` with this memo?
@@ -19,9 +23,9 @@ export async function verifyTx(net, hash, { to, memo, asset, min }) {
   if (!tx.successful) return { ok: false, why: 'failed on chain' };
   const ops = await hz(net, `/transactions/${hash}/payments?limit=50`);
   const recs = (ops && ops._embedded && ops._embedded.records) || [];
-  const hit = recs.find(p => PAY_TYPES.has(p.type) && p.to === to && okAsset(net, p, asset) && Number(p.amount) >= Number(min) * 0.98);
+  const hit = recs.find(p => PAY_TYPES.has(p.type) && p.to === to && okAsset(net, p, asset) && enough(p.amount, min));
   if (!hit) return { ok: false, why: 'no matching payment in this transaction' };
-  const memoOk = !memo || (tx.memo_type === 'text' && tx.memo === memo);
+  const memoOk = !memo || (tx.memo_type === 'text' && normMemo(tx.memo) === normMemo(memo));
   return { ok: true, memoOk, amount: hit.amount, ledger: tx.ledger, hash, from: hit.from, at: tx.created_at };
 }
 
@@ -32,9 +36,9 @@ export async function findPayment(net, to, { memo, asset, min, since }) {
   for (const p of recs) {
     if (!PAY_TYPES.has(p.type) || p.to !== to || !okAsset(net, p, asset)) continue;
     const tx = p.transaction || {};
-    if (!tx.successful || tx.memo_type !== 'text' || tx.memo !== memo) continue;
+    if (!tx.successful || tx.memo_type !== 'text' || normMemo(tx.memo) !== normMemo(memo)) continue;
     if (since && Date.parse(p.created_at) < since - 120000) continue;
-    if (Number(p.amount) < Number(min) * 0.98) continue;
+    if (!enough(p.amount, min)) continue;
     return { amount: p.amount, ledger: tx.ledger, hash: p.transaction_hash, from: p.from, at: p.created_at };
   }
   return null;
