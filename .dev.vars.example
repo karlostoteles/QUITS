@@ -1,0 +1,8 @@
+# Copy to .dev.vars for `npm run dev` (never commit .dev.vars)
+ANTHROPIC_API_KEY=sk-ant-...
+SESSION_SECRET=a-long-random-string
+INVITE_CODES=WORD-1234
+# Local only: a test sign-in button instead of Google. Never set in production.
+AUTH_TEST=1
+# Optional: read a sample receipt instead of calling the model
+# AI_MOCK=1

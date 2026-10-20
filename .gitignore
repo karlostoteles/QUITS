@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+public/
+meta.json
+.dev.vars
+.env
+test/.keys.json

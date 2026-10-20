@@ -1,0 +1,25 @@
+{
+  "name": "quits",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && wrangler dev --local",
+    "deploy": "node build.mjs && node --env-file-if-exists=.env node_modules/wrangler/bin/wrangler.js deploy",
+    "test": "node test/ui-flow.mjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/anybody": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/martian-mono": "^5.3.0",
+    "@fontsource/doto": "^5.3.0",
+    "esbuild": "^0.28.2",
+    "wrangler": "^4.151.2"
+  },
+  "dependencies": {
+    "@creit.tech/stellar-wallets-kit": "^2.7.1",
+    "@stellar/stellar-sdk": "^17.2.1",
+    "gsap": "^3.12.5",
+    "qrcode-generator": "^1.4.4"
+  }
+}
