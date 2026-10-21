@@ -10,6 +10,10 @@ At a group dinner one person pays, and then the hard part starts: working out wh
 
 ## How Quits works
 
+[![Demo: a whole night in 90 seconds](docs/demo-teaser.gif)](https://quits.aircade.xyz/demo.mp4)
+
+**[Watch the demo (90 s)](https://quits.aircade.xyz/demo.mp4)** ([file in this repo](src/web/static/demo.mp4)): Carlos pays at a tasca, Ana scans the QR, the receipt is read by AI, everyone taps what they had, Ana pays back in USDC on Stellar, and the night stays with its photos. Recorded on Stellar testnet; the live app runs on mainnet.
+
 1. The host opens a table and snaps the place. The photo becomes the cover of the night.
 2. Friends scan the QR on the table. It opens in the browser: no app, and no account needed.
 3. The host snaps the receipt. Claude reads every line.

@@ -40,7 +40,7 @@ const bg = page(`<div class="dv-bg"><div class="dv-glow"></div>
   <div class="dv-foot"><b>quits.aircade.xyz</b><span>Recorded on Stellar testnet. The live app runs on mainnet.</span></div></div>`, `
   .dv-bg{position:absolute;inset:0;background:radial-gradient(70% 90% at 72% 50%,#16204a 0%,#0A0F20 62%,#05080F 100%)}
   .dv-glow{position:absolute;left:-10%;top:-20%;width:60%;height:80%;background:radial-gradient(closest-side,rgba(255,228,92,.08),transparent)}
-  .brand{position:absolute;left:110px;top:96px}.dv-brand .wm-t{font-size:44px}.dv-brand .wordmark{padding:2px 14px 6px}
+  .dv-brand{position:absolute;left:110px;top:96px}.dv-brand .wm-t{font-size:44px}.dv-brand .wordmark{padding:2px 14px 6px}
   .dv-lab{position:absolute;top:58px;display:flex;align-items:center;gap:10px;font:500 20px/1 var(--f-ui);color:var(--muted)}
   .dv-lab b{color:var(--text);font-weight:650}
   .dv-foot{position:absolute;left:110px;bottom:84px;display:flex;flex-direction:column;gap:8px;font:500 17px/1.3 var(--f-ui);color:var(--dim)}
@@ -70,10 +70,11 @@ const card = (title, sub, small) => page(`<div class="dv-bg"><div class="dv-c"><
   .dv-c p{margin:0;font:500 30px/1.4 var(--f-ui);color:var(--muted);max-width:30ch}
   .dv-c small{font:600 22px/1 var(--f-mono);font-stretch:87.5%;color:var(--dim);margin-top:18px}`);
 const b = await chromium.launch(), pg = await b.newPage({ viewport: { width: W, height: H } });
-const still = async (html, file, transparent) => { await pg.setContent(html); await pg.evaluate(() => document.fonts.ready); await pg.waitForTimeout(100); await pg.screenshot({ path: path.join(OUT, file), omitBackground: !!transparent }); };
+const CAP = { x: 100, y: 280, width: PX[0] - 140, height: 560 };
+const still = async (html, file, transparent, clip) => { await pg.setContent(html); await pg.evaluate(() => document.fonts.ready); await pg.waitForTimeout(100); await pg.screenshot({ path: path.join(OUT, file), omitBackground: !!transparent, ...(clip ? { clip } : {}) }); };
 await still(bg, 'bg.png');
 await still(bezel, 'bezel.png', true);
-for (const k of Object.keys(STEPS)) await still(caption(STEPS[k]), `cap-${k}.png`, true);
+for (const k of Object.keys(STEPS)) await still(caption(STEPS[k]), `cap-${k}.png`, true, CAP);
 await still(card('Split the bill at the table.', 'Friends tap what they had and pay you back from their own wallet, on Stellar.'), 'title.png');
 await still(card('quits.aircade.xyz', 'Live on Stellar mainnet. USDC by Circle, wallet to wallet.', 'github.com/karlostoteles/QUITS'), 'end.png');
 await b.close();
@@ -87,10 +88,10 @@ spans.forEach(s => inputs.push('-loop', '1', '-t', String(dur), '-i', path.join(
 let g = `[1:v]scale=${SW}:${SH}:flags=lanczos,setsar=1[h];[2:v]scale=${SW}:${SH}:flags=lanczos,setsar=1[g];[0:v][h]overlay=${PX[0] + BZ}:${PY + BZ}[a];[a][g]overlay=${PX[1] + BZ}:${PY + BZ}[b];[b][3:v]overlay=0:0[c0]`;
 spans.forEach((s, i) => {
   const fi = 0.35, a = Math.max(0, s.a), e = s.b;
-  g += `;[${4 + i}:v]format=rgba,fade=t=in:st=${a.toFixed(2)}:d=${fi}:alpha=1,fade=t=out:st=${Math.max(a, e - fi).toFixed(2)}:d=${fi}:alpha=1[t${i}];[c${i}][t${i}]overlay=0:0[c${i + 1}]`;
+  g += `;[${4 + i}:v]format=rgba,fade=t=in:st=${a.toFixed(2)}:d=${fi}:alpha=1,fade=t=out:st=${Math.max(a, e - fi).toFixed(2)}:d=${fi}:alpha=1[t${i}];[c${i}][t${i}]overlay=${CAP.x}:${CAP.y}[c${i + 1}]`;
 });
 g += `;[c${spans.length}]format=yuv420p[v]`;
-ff([...inputs, '-filter_complex', g, '-map', '[v]', '-r', String(FPS), '-t', String(dur), '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', path.join(OUT, 'main.mp4')]);
+ff([...inputs, '-filter_complex', g, '-map', '[v]', '-r', String(FPS), '-t', String(dur), '-c:v', 'libx264', '-crf', '16', '-preset', 'veryfast', path.join(OUT, 'main.mp4')]);
 
 // ---- 4. title → main → end, with short crossfades ----
 const T = 3.2, E = 4, X = 0.6;
