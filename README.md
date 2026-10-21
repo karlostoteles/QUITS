@@ -13,9 +13,17 @@ At a group dinner one person pays, and then the hard part starts: working out wh
 1. The host opens a table and snaps the place. The photo becomes the cover of the night.
 2. Friends scan the QR on the table. It opens in the browser: no app, and no account needed.
 3. The host snaps the receipt. Claude reads every line.
-4. Everyone taps what they had on a shared, live receipt. Shared plates split themselves, nobody pays for what nobody claimed until the end (then it's split by all), and the tip goes on top.
+4. Everyone taps what they had on a shared, live receipt. Shared plates split themselves, what nobody claimed is split by everyone, and the tip goes on top.
 5. Each guest pays the host back in USDC from their own Stellar wallet, or marks cash for the host to confirm.
 6. Quits. The night stays with photos, who was there and what each paid. Signing in with Google keeps it in your profile on any phone.
+
+### The flow, screen by screen
+
+| | | | |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screens/01-welcome.png" width="200" alt="Welcome screen"><br>**Welcome**<br><sub>Sign in with Google to keep your nights</sub> | <img src="docs/screens/02-open.png" width="200" alt="Opening a table"><br>**Open a table**<br><sub>A photo of the place; Quits reads the name</sub> | <img src="docs/screens/03-table.png" width="200" alt="The table with its QR"><br>**The table**<br><sub>Friends scan the QR; seats fill up live</sub> | <img src="docs/screens/04-join.png" width="200" alt="Joining a table"><br>**Join**<br><sub>In the browser, with Google or without an account</sub> |
+| <img src="docs/screens/05-receipt.png" width="200" alt="The receipt read by AI"><br>**The receipt**<br><sub>AI reads every line; the total is checked</sub> | <img src="docs/screens/06-claim.png" width="200" alt="Tapping what you had"><br>**Tap what you had**<br><sub>Everyone sees it live; shared plates split</sub> | <img src="docs/screens/07-live.png" width="200" alt="The host's live table"><br>**The host's view**<br><sub>Who owes what and what is already back</sub> | <img src="docs/screens/08-pay.png" width="200" alt="Paying back"><br>**Pay back**<br><sub>One tap from a wallet app, or by hand with a memo</sub> |
+| <img src="docs/screens/09-paid.png" width="200" alt="Paid"><br>**Paid**<br><sub>Seen on Stellar; your part, stamped</sub> | <img src="docs/screens/10-quits.png" width="200" alt="Everyone's quits"><br>**Everyone’s quits**<br><sub>The moment the last share lands</sub> | <img src="docs/screens/11-night.png" width="200" alt="The night"><br>**The night stays**<br><sub>Photos, who was there, who had what</sub> | <img src="docs/screens/12-home.png" width="200" alt="Your nights"><br>**Your nights**<br><sub>Every table you split, with the people who were there</sub> |
 
 ## How it uses Stellar
 
