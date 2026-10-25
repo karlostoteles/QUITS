@@ -1,6 +1,10 @@
 import { gsap } from 'gsap';
 import qrcode from 'qrcode-generator';
-import { shares, lineAlloc, unitsClaimed, lines, memoFor, dueAmount, NETWORKS, SWATCHES, short, splitCents } from '../shared/logic.js';
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha512';
+import { shares, lineAlloc, unitsClaimed, lines, memoFor, dueAmount, NETWORKS, SWATCHES, short, splitCents, gamePool, gameFree } from '../shared/logic.js';
+import { commitmentOf, sealMessage, hex, unhex, randomBytes } from '../shared/game.js';
+ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 /* ================= basics ================= */
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,6 +35,8 @@ const ICONS = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>', trash: '<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   ext: '<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 10a2.5 2.5 0 0 1 5 0c0 2.5-5 1.5-5 4a2.5 2.5 0 0 0 5 0"/>',
+  fist: '<path d="M7 11V8.5a2 2 0 0 1 4 0V11"/><path d="M11 10V7a2 2 0 0 1 4 0v3"/><path d="M15 10.5V8.5a2 2 0 0 1 4 0V14a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-2.5a2 2 0 0 1 4 0V13"/>',
 };
 const ic = (n, s = 20) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
 
@@ -123,6 +129,7 @@ function applyState(ns) {
   ns.photos.filter(p => !had.has(p.id)).reverse().forEach(p => emit('photo', { photo: p, pid: p.by }));
   if (JSON.stringify(os.intents) !== JSON.stringify(ns.intents)) emit('intents');
   if (os.name !== ns.name) emit('rename');
+  if (JSON.stringify(os.game) !== JSON.stringify(ns.game)) emit('game', { from: os.game });
   if (os.phase !== ns.phase) emit('phase', { from: os.phase });
   emit('state');
 }
@@ -870,12 +877,13 @@ function partFoot(ctx, host) {
     const bits = []; if (n) bits.push(`${n} thing${n === 1 ? '' : 's'}`); if (s.leftShare[me]) bits.push(`${eur(s.leftShare[me])} leftovers`); if (s.tip[me]) bits.push(`${eur(s.tip[me])} tip`);
     $('.yp-s', el).textContent = bits.length ? bits.join(' · ') : 'Tap a line to add it';
     const b = $('.btn', el);
-    if (S.phase === 'settling' && !host) { b.disabled = !!(S.paid[me]); b.dataset.act = 'pay'; b.textContent = S.paid[me] ? 'Paid' : 'Pay ' + P(S.host).name; }
+    if (S.phase === 'settling' && !host && gameFree(S, me)) { b.disabled = true; b.dataset.act = 'done'; b.textContent = `${P(S.game.outcome.loser).name} pays`; }
+    else if (S.phase === 'settling' && !host) { b.disabled = !!(S.paid[me]); b.dataset.act = 'pay'; b.textContent = S.paid[me] ? 'Paid' : 'Pay ' + P(S.host).name; }
     else if (S.phase !== 'claiming') { b.disabled = true; b.dataset.act = 'done'; b.textContent = host ? 'All set' : 'Closed'; }
     else if (S.ready.includes(me)) { const r = S.order.filter(id => S.ready.includes(id)).length; b.disabled = false; b.dataset.act = 'done'; b.textContent = `Waiting · ${r}/${S.order.length}`; }
     else { b.disabled = n === 0 && !host; b.dataset.act = 'done'; b.textContent = 'I’m done'; }
   };
-  ['claims', 'ready', 'phase', 'leftover', 'join', 'paid'].forEach(t => on(t, () => upd(), ctx.bag));
+  ['claims', 'ready', 'phase', 'leftover', 'join', 'paid', 'game'].forEach(t => on(t, () => upd(), ctx.bag));
   upd(false);
   return el;
 }
@@ -950,6 +958,7 @@ SCREENS.live = {
     tab(ctx, b) { if (ctx.tab === b.dataset.tab) return; ctx.tab = b.dataset.tab; $$('[data-act=tab]', ctx.el).forEach(x => x.setAttribute('aria-selected', String(x === b))); renderLiveTab(ctx); },
     confirm(ctx, b) { act('confirmCash', { who: b.closest('.prow').dataset.id }).catch(() => {}); },
     async close(ctx, b) { busy(b, true); try { await act('close'); } catch (e) { busy(b, false); } },
+    async round(ctx, b) { busy(b, true); try { await act('gameAsk'); } catch (e) { /* toasted */ } busy(b, false); },
     done() { if (S.phase === 'claiming') act('ready', { v: !S.ready.includes(ME.pid) }).catch(() => {}); },
     night() { nav(`/t/${S.code}?night`); },
   },
@@ -986,6 +995,7 @@ function liveRows(ctx) {
 function personState(id) {
   const p = S.paid[id];
   if (id === S.host) return 'host';
+  if (gameFree(S, id) && S.phase !== 'claiming') return 'free';
   if (p) return p.how === 'cash' && !p.confirmed ? 'cash' : 'paid';
   if (S.intents[id]) return 'sending';
   if (S.ready.includes(id)) return S.phase === 'settling' ? 'topay' : 'done';
@@ -999,11 +1009,12 @@ function refreshLive(ctx, animate = true) {
     const row = $(`.prow[data-id="${id}"]`, el); if (!row) return;
     const st = personState(id), p = S.paid[id], n = count(id);
     const sub = id === S.host ? (n ? `Paid the bill · had ${n} thing${n === 1 ? '' : 's'}` : 'Paid the bill') :
+      st === 'free' ? `${P(S.game.outcome.loser).name} pays for them · lost the round` :
       st === 'paid' ? (p.how === 'cash' ? 'Paid in cash' : `Paid with ${p.wallet || 'a wallet'} · ${p.asset}`) :
       st === 'cash' ? 'Says they paid in cash' : st === 'sending' ? 'Sending a payment…' : `${n} thing${n === 1 ? '' : 's'}${st === 'choosing' ? ' so far' : ''}`;
     $('.pr-sub', row).textContent = sub;
     const amt = $('.pr-amt', row); if (animate) roll(amt, s.total[id] || 0); else setNum(amt, s.total[id] || 0);
-    const pill = $('.pr-st', row), label = { host: 'paid bill', paid: 'paid', cash: 'Confirm cash', done: 'done', topay: 'to pay', choosing: 'choosing', waiting: 'joined', sending: 'sending' }[st];
+    const pill = $('.pr-st', row), label = { host: 'paid bill', paid: 'paid', cash: 'Confirm cash', done: 'done', topay: 'to pay', choosing: 'choosing', waiting: 'joined', sending: 'sending', free: 'off the hook' }[st];
     if (pill.dataset.st !== st) {
       pill.dataset.st = st; pill.innerHTML = st === 'paid' ? `${ic('check', 13)}${label}` : label;
       pill.classList.toggle('confirm', st === 'cash');
@@ -1011,7 +1022,7 @@ function refreshLive(ctx, animate = true) {
       pill.setAttribute('role', st === 'cash' ? 'button' : 'status');
       if (animate && !RM) gsap.fromTo(pill, { scale: .85 }, { scale: 1, duration: .4, ease: 'back.out(2.5)' });
     }
-    if (id !== S.host) ctx.ring.state(id, st === 'paid' ? 'paid' : st === 'choosing' ? 'choosing' : 'idle', st === 'paid' ? 1 : (st === 'cash' || st === 'sending' ? .5 : 0));
+    if (id !== S.host) ctx.ring.state(id, st === 'paid' || st === 'free' ? 'paid' : st === 'choosing' ? 'choosing' : 'idle', st === 'paid' || st === 'free' ? 1 : (st === 'cash' || st === 'sending' ? .5 : 0));
     else ctx.ring.state(id, 'idle', 1);
   });
   const v = $('.rt-v', el), of = $('.rt-of', el);
@@ -1025,7 +1036,10 @@ function refreshLive(ctx, animate = true) {
   } else lb.hidden = true;
   if (acts) {
     const notReady = S.order.filter(id => !S.ready.includes(id)).length;
-    acts.innerHTML = S.phase === 'claiming' ? `<button class="btn ghost" type="button" data-act="close">${notReady ? `Close the receipt now (${notReady} still choosing)` : 'Close the receipt'}</button>` : S.phase === 'settled' ? `<button class="btn primary" type="button" data-act="night">See the night${ic('chev')}</button>` : '';
+    const canPlay = S.phase === 'claiming' && HEALTH.game && !(S.game && ['invite', 'sealing', 'opening'].includes(S.game.status)) && S.order.length >= 2;
+    const played = S.game && S.game.status === 'done' && S.game.outcome;
+    acts.innerHTML = (canPlay ? `<button class="btn primary" type="button" data-act="round">${ic('fist', 20)}${played ? 'Play again for the bill' : 'Who pays? Play a round'}</button>` : '')
+      + (S.phase === 'claiming' ? `<button class="btn ghost" type="button" data-act="close">${notReady ? `Close the receipt now (${notReady} still choosing)` : 'Close the receipt'}</button>` : S.phase === 'settled' ? `<button class="btn primary" type="button" data-act="night">See the night${ic('chev')}</button>` : '');
   }
 }
 function livePaid(ctx, d) {
@@ -1155,7 +1169,7 @@ SCREENS.pay = {
       <header class="scr-head"><button class="icon-btn" type="button" data-act="back" aria-label="Back to the receipt">${ic('back', 22)}</button><span class="head-t">Pay back</span><span class="grow"></span>${netPill()}</header>
       <div class="scr-body pay-body">
         <div class="payee">${av(S.host, 52)}<span class="who">Pay ${esc(host)}</span><span class="amt">${eur(cents)}</span><span class="conv"></span></div>
-        <div class="brk"><div><span>Your plates and drinks</span><span>${eur(s.items[me] || 0)}</span></div>${s.leftShare[me] ? `<div><span>Your share of the leftovers</span><span>${eur(s.leftShare[me])}</span></div>` : ''}${s.tip[me] ? `<div><span>Tip (${S.tip}%)</span><span>${eur(s.tip[me])}</span></div>` : ''}</div>
+        <div class="brk"><div><span>Your plates and drinks</span><span>${eur(s.items[me] || 0)}</span></div>${s.leftShare[me] ? `<div><span>Your share of the leftovers</span><span>${eur(s.leftShare[me])}</span></div>` : ''}${s.tip[me] ? `<div><span>Tip (${S.tip}%)</span><span>${eur(s.tip[me])}</span></div>` : ''}${roundExtra(me) ? `<div><span>The round: ${esc(roundNames(me))}</span><span>${eur(roundExtra(me))}</span></div>` : ''}</div>
         ${S.accept.length > 1 ? `<div class="seg" role="radiogroup" aria-label="Pay in">${S.accept.map(a => `<button type="button" role="radio" data-act="asset" data-asset="${a}" aria-checked="${ctx.asset === a}">${a}<small>${a === 'EURC' ? 'digital euros' : 'digital dollars'}</small></button>`).join('')}</div>` : ''}
         <span class="label">Pay from</span>
         <div class="payopts">
@@ -1307,6 +1321,7 @@ SCREENS.memory = {
           <h2 class="h2">Photos from the night</h2>
           <div class="pgrid">${me ? `<label class="padd" for="mem-photo">${ic('camera', 22)}<span>Add a photo</span></label><input id="mem-photo" class="cap-in" type="file" accept="image/*" multiple>` : ''}${S.photos.map(photoHTML).join('')}</div>
           <p class="note pnote">${S.photos.length ? 'Everyone at the table can add photos. They stay with the night.' : 'No photos yet. Anyone at the table can add the first one.'}</p>
+          ${roundCard()}
           ${S.receipt ? `<h2 class="h2">Who had what</h2><ul class="mem-ppl">${ppl}</ul>` : ''}
           ${txs ? `<h2 class="h2">Paid back</h2><ul class="mem-tx">${txs}</ul><p class="note">Every payment went straight from each wallet to ${esc(P(S.host).name)}’s. Quits never held the money.</p>` : ''}
         </div>
@@ -1465,6 +1480,208 @@ SCREENS.notfound = {
   act: { home() { nav('/'); } },
 };
 
+/* ================= "Who pays?": a round of hidden coins, judged on Stellar ================= */
+// Everyone in the round hides 0–3 coins and guesses the total. The move is sealed (a signed hash)
+// and opened later on the whopays contract; the player furthest from the real total pays the
+// parts of everyone who played. The key that signs lives only in this phone.
+const GKEY = () => (S && S.game ? `g:${S.code}:${S.game.id}` : null);
+const gmem = () => (GKEY() ? LS.get(GKEY(), null) : null);
+const gsave = v => { if (GKEY()) LS.set(GKEY(), v); };
+function myRoundKey() {
+  let m = gmem();
+  if (!m || !m.priv) { const priv = randomBytes(32); m = { ...(m || {}), priv: hex(priv), pk: hex(ed.getPublicKey(priv)) }; gsave(m); }
+  return m;
+}
+const roundPlayers = () => (S.game ? (S.game.active && S.game.active.length ? S.game.active : S.game.players) : []);
+const inRound = () => !!(S && S.game && ME && S.game.players.includes(ME.pid));
+const activeInRound = () => !!(S && S.game && ME && roundPlayers().includes(ME.pid));
+const roundLoser = () => (S.game && S.game.outcome ? S.game.outcome.loser : null);
+// What the loser pays on top of their own part: everyone else's, and whose.
+function roundExtra(me) { const p = gamePool(S); if (!p || roundLoser() !== me) return 0; const s = shares(S); return s.total[me] - ((s.items[me] || 0) + (s.leftShare[me] || 0) + (s.tip[me] || 0)); }
+function roundNames(me) { const p = (gamePool(S) || []).filter(id => id !== me).map(id => P(id).name); return p.length > 2 ? `${p.slice(0, 2).join(', ')} and ${p.length - 2} more` : p.join(' and '); }
+const coinsDots = n => `<span class="coins-d" aria-label="${n} coins">${Array.from({ length: 3 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
+const txA = (tx, label = 'See it on Stellar') => (tx ? `<a class="txlink" href="${esc(S.game.explorer)}/tx/${esc(tx)}" target="_blank" rel="noopener">${label} ${ic('ext', 12)}</a>${S.game.network === 'testnet' ? ' <span class="net">testnet</span>' : ''}` : '');
+
+function roundOutcomeText(g, me) {
+  const L = g.outcome.loser, who = L === me ? 'You' : P(L).name, their = L === me ? 'your' : 'their';
+  if (g.outcome.reason === 'noreveal') return `${who} never opened ${their} move in time. Silence loses.`;
+  const mv = g.opened[L] || {};
+  return `${g.outcome.total} coin${g.outcome.total === 1 ? '' : 's'} on the table. ${who} said ${mv.guess}, furthest off${g.outcome.drawn ? ' — tied, and the contract drew ' + (L === me ? 'you' : P(L).name) : ''}.`;
+}
+function roundPlayersList(g, { moves = false } = {}) {
+  return `<ul class="gplayers">${roundPlayers().map(id => {
+    const o = g.opened[id], sealed = !!g.sealed[id];
+    const right = moves ? (o ? `${coinsDots(o.coins)}<span class="gp-say">said <b>${o.guess}</b></span>` : `<span class="gp-say dim">${g.status === 'opening' ? 'opening…' : '·'}</span>`)
+      : sealed ? `<span class="gp-say ok">${ic('check', 14)}sealed</span>` : `<span class="gp-say dim">choosing…</span>`;
+    return `<li class="${roundLoser() === id ? 'loser' : ''}">${av(id, 28)}<b>${id === ME.pid ? 'You' : esc(P(id).name)}</b><span class="grow"></span>${right}</li>`;
+  }).join('')}</ul>`;
+}
+
+// One sheet for the whole round; re-rendered when what it should show changes.
+let GL = null;
+function roundView() {
+  const g = S && S.game; if (!g || !meIn()) return null;
+  const m = gmem() || {}, me = ME.pid, host = isHost();
+  if (g.status === 'invite') {
+    if (m.dismissed === 'invite' && !host) return null;
+    const yes = S.order.filter(id => g.answers[id] === true), no = S.order.filter(id => g.answers[id] === false), mine = g.answers[me];
+    return { key: `invite:${yes.join()}:${no.join()}:${String(mine)}`, kind: 'sheet', html: `
+      <div class="gh">${ic('fist', 26)}<h2 class="t-xl">Who pays?</h2></div>
+      <p class="sub" style="margin-top:4px">${host ? 'You’re proposing' : `${esc(P(S.host).name)} proposes`} a round for the bill. Everyone hides 0–3 coins in a fist and guesses the total. Furthest from the real total pays the parts of everyone who plays.</p>
+      <p class="gfine">${ic('lock', 14)}Moves are sealed on Stellar before anyone opens theirs, so nobody can wait, cheat or back out. The contract only decides who pays; the money still goes wallet to wallet.</p>
+      <div class="ganswers">${S.order.map(id => `<span class="gans ${g.answers[id] === true ? 'yes' : g.answers[id] === false ? 'no' : ''}">${av(id, 26)}<small>${g.answers[id] === true ? 'in' : g.answers[id] === false ? 'out' : '…'}</small></span>`).join('')}</div>
+      ${mine === undefined ? `<button class="btn primary" type="button" data-g="in">${ic('fist', 20)}I’m in</button><button class="btn ghost" type="button" data-g="out">I’ll just pay my part</button>`
+        : `<p class="gstate">${mine ? 'You’re in.' : 'You’re out: you pay your own part.'} <button type="button" class="link" data-g="${mine ? 'out' : 'in'}">${mine ? 'Change my mind' : 'Join after all'}</button></p>`}
+      ${host ? `<button class="btn primary" type="button" data-g="start" ${yes.length < 2 ? 'disabled' : ''}>${yes.length < 2 ? 'Waiting for two to be in' : `Start with ${yes.length}${ic('chev')}`}</button><button class="btn ghost sm" type="button" data-g="off">Call it off</button>` : ''}` };
+  }
+  if (g.status === 'sealing') {
+    if (!inRound()) return bystander(g, m);
+    if (!g.sealed[me]) {
+      const n = g.players.length, coins = Math.min(3, Math.max(0, m.coins ?? 0)), guess = Math.min(3 * n, Math.max(0, m.guess ?? n));
+      return { key: `move:${coins}:${guess}`, kind: 'sheet', html: `
+        <div class="gh">${ic('fist', 26)}<h2 class="t-xl">Your move</h2></div>
+        <p class="sub" style="margin-top:4px">${n} playing · ${3 * n} coins at most on the table. Nobody sees this until everyone has sealed.</p>
+        <div class="gpick"><span class="label">Coins in your fist</span><div class="gstep"><button type="button" data-g="coins" data-d="-1" aria-label="One coin less" ${coins === 0 ? 'disabled' : ''}>−</button><b class="gcoins">${coinsDots(coins)}<span>${coins}</span></b><button type="button" data-g="coins" data-d="1" aria-label="One coin more" ${coins === 3 ? 'disabled' : ''}>+</button></div></div>
+        <div class="gpick"><span class="label">Your call: coins on the table</span><div class="gstep"><button type="button" data-g="guess" data-d="-1" aria-label="Guess one less" ${guess === 0 ? 'disabled' : ''}>−</button><b class="gguess">${guess}</b><button type="button" data-g="guess" data-d="1" aria-label="Guess one more" ${guess === 3 * n ? 'disabled' : ''}>+</button></div></div>
+        <button class="btn primary" type="button" data-g="seal">${ic('lock', 20)}Seal my move</button>
+        <p class="gfine">${ic('lock', 14)}Signed with a key that only this phone has, then sealed on Stellar. Keep this page open: your phone opens the move for you when everyone has sealed.</p>` };
+    }
+    const waiting = g.players.filter(id => !g.sealed[id]);
+    return { key: `sealed:${waiting.join()}:${g.sealed[me].tx || ''}:${g.error || ''}`, kind: 'sheet', html: `
+      <div class="gh">${ic('lock', 26)}<h2 class="t-xl">Sealed</h2></div>
+      <p class="sub" style="margin-top:4px">${waiting.length ? `Waiting for ${waiting.map(id => P(id).name).join(', ')} to seal.` : 'Everyone has sealed. Opening the moves…'}</p>
+      ${roundPlayersList(g)}
+      <p class="gfine">${g.sealed[me].tx ? `${ic('check', 14)}Your seal is on Stellar. ${txA(g.sealed[me].tx)}` : `<span class="spin"></span>Sending your seal to Stellar…`}</p>
+      ${errBox(g, host)}
+      ${host && waiting.length ? `<button class="btn ghost sm" type="button" data-g="close">Open without ${waiting.length === 1 ? P(waiting[0]).name : 'them'}</button><p class="note">Whoever hasn’t sealed just pays their own part.</p>` : ''}` };
+  }
+  if (g.status === 'opening') {
+    if (!activeInRound()) return bystander(g, m);
+    const silent = roundPlayers().filter(id => !g.opened[id]);
+    return { key: `opening:${silent.join()}:${JSON.stringify(g.opened)}:${g.error || ''}:${m.opened ? 1 : 0}`, kind: 'sheet', html: `
+      <div class="gh">${ic('fist', 26)}<h2 class="t-xl">Opening</h2></div>
+      <p class="sub" style="margin-top:4px">${silent.length ? `Waiting for ${silent.map(id => (id === me ? 'you' : P(id).name)).join(', ')} to open.` : 'All open. The contract is settling…'}</p>
+      ${roundPlayersList(g, { moves: true })}
+      <p class="gfine">${g.opened[me] ? `${ic('check', 14)}Your move is open${g.opened[me].tx ? ` on Stellar. ${txA(g.opened[me].tx)}` : '…'}` : m.opened ? `<span class="spin"></span>Opening your move…` : `<span class="spin"></span>Your phone opens your move now…`}</p>
+      ${errBox(g, host)}
+      <p class="note">Whoever doesn’t open in time loses. The last move to open settles the round.</p>` };
+  }
+  if (g.status === 'done' && g.outcome) {
+    if (m.seen === g.id) return null;
+    const L = g.outcome.loser;
+    return { key: `done`, kind: 'sheet', html: `
+      <div class="gres"><span class="label">Who pays</span><h2 class="t-xxl">${L === me ? 'You pay' : `${esc(P(L).name)} pays`}</h2><p class="sub">${esc(roundOutcomeText(g, me))}</p></div>
+      ${roundPlayersList(g, { moves: true })}
+      <p class="gfine">${ic('check', 14)}Decided by the contract, not by us. ${txA(g.txs.settle && g.txs.settle.tx)}</p>
+      <button class="btn primary" type="button" data-g="ok">${L === me ? 'Fair enough' : 'Nice'}</button>` };
+  }
+  if (g.status === 'cancelled' && m.seen !== g.id) { gsave({ ...m, seen: g.id }); UI.toast(`<div><b>The round was called off</b><small>Everyone pays their own part.</small></div>`, 2600); }
+  return null;
+}
+function bystander(g, m) {
+  if (m.dismissed === g.status) return null;
+  const names = roundPlayers().map(id => P(id).name);
+  return { key: `bar:${g.status}`, kind: 'bar', html: `${ic('fist', 18)}<span><b>A round for the bill is on.</b> ${esc(names.join(', '))} ${g.status === 'sealing' ? 'are sealing their moves' : 'are opening their moves'}. The loser pays their parts; you pay yours.</span><button class="icon-btn" type="button" data-g="hide" aria-label="Hide">${ic('close', 18)}</button>` };
+}
+const errBox = (g, host) => (g.error ? `<p class="warnbox">Stellar hiccup: ${esc(String(g.error).slice(0, 140))}${host ? ` <button type="button" class="link" data-g="retry">Try again</button>` : ' Trying again…'}</p>` : '');
+
+function gameLayer() {
+  const v = roundView(), key = v && `${v.kind}:${v.key}`;
+  if (GL && (!v || GL.key !== key)) { const old = GL; GL = null; gsap.to(old.el, { opacity: 0, y: 12, duration: D(.22), onComplete: () => old.el.remove() }); }
+  if (!v || (GL && GL.key === key)) return;
+  const el = v.kind === 'bar'
+    ? h(`<div class="gbar">${v.html}</div>`)
+    : h(`<div class="sheet-wrap glayer"><div class="sheet-dim"></div><div class="sheet game" role="dialog" aria-label="Who pays?"><div class="grab"></div>${v.html}</div></div>`);
+  GL = { el, key };
+  UI.root.insertBefore(el, UI.toasts);
+  if (v.kind === 'bar') gsap.from(el, { y: -20, opacity: 0, duration: D(.35), ease: 'power2.out' });
+  else { gsap.from($('.sheet-dim', el), { opacity: 0, duration: D(.3) }); gsap.from($('.sheet', el), { yPercent: 110, duration: D(.5), ease: 'power3.out' }); }
+  el.addEventListener('click', e => { const b = e.target.closest('[data-g]'); if (b) { e.preventDefault(); gameAct(b.dataset.g, b); } });
+}
+async function gameAct(what, b) {
+  const g = S.game, m = gmem() || {};
+  try {
+    if (what === 'in') { const k = myRoundKey(); busy(b, true); await act('gameAnswer', { yes: true, pk: k.pk }); }
+    else if (what === 'out') { busy(b, true); await act('gameAnswer', { yes: false }); }
+    else if (what === 'start') { busy(b, true, 'Starting on Stellar'); await act('gameStart'); }
+    else if (what === 'off') { busy(b, true); await act('gameCancel'); }
+    else if (what === 'hide') { gsave({ ...m, dismissed: g.status }); gameLayer(); }
+    else if (what === 'coins' || what === 'guess') {
+      const n = g.players.length, lim = what === 'coins' ? 3 : 3 * n, cur = what === 'coins' ? (m.coins ?? 0) : (m.guess ?? n);
+      gsave({ ...m, [what]: Math.max(0, Math.min(lim, cur + Number(b.dataset.d))) }); gameLayer();
+    }
+    else if (what === 'seal') {
+      const k = myRoundKey(), n = g.players.length, coins = Math.min(3, Math.max(0, m.coins ?? 0)), guess = Math.min(3 * n, Math.max(0, m.guess ?? n));
+      busy(b, true, 'Sealing');
+      const salt = m.salt ? unhex(m.salt) : randomBytes(32);
+      const c = await commitmentOf(unhex(g.id), unhex(k.pk), coins, guess, salt);
+      const sig = ed.sign(sealMessage(unhex(g.id), c), unhex(k.priv));
+      gsave({ ...m, coins, guess, salt: hex(salt), commitment: hex(c) });
+      await act('gameSeal', { commitment: hex(c), sig: hex(sig) });
+      gsave({ ...gmem(), sealed: true });
+    }
+    else if (what === 'close') { busy(b, true, 'Closing on Stellar'); await act('gameClose'); }
+    else if (what === 'retry') { await act('gameRetry'); }
+    else if (what === 'ok') { gsave({ ...m, seen: g.id }); gameLayer(); }
+  } catch (e) { busy(b, false); }
+}
+// Opens my sealed move as soon as the round is in its opening phase (once).
+async function autoOpen() {
+  const g = S && S.game, m = gmem();
+  if (!g || g.status !== 'opening' || !activeInRound() || !m || !m.sealed || m.opened || g.opened[ME.pid]) return;
+  if (m.commitment !== (g.sealed[ME.pid] || {}).commitment) return; // sealed from another phone
+  gsave({ ...m, opened: true });
+  try { await act('gameOpen', { coins: m.coins, guess: m.guess, salt: m.salt }); }
+  catch (e) { gsave({ ...gmem(), opened: false }); later(4000, autoOpen); }
+}
+on('state', () => { if (CODE && S) { autoOpen(); gameLayer(); } });
+on('game', d => {
+  const g = S.game; if (!g) return;
+  if (g.status === 'invite' && (!d.from || d.from.status !== 'invite') && !isHost()) UI.toast(`${ic('fist', 20)}<div><b>${esc(P(S.host).name)} proposes a round for the bill</b><small>Hidden coins, sealed on Stellar. In or out?</small></div>`, 3200);
+  if (g.status === 'done' && d.from && d.from.status !== 'done' && g.outcome && !inRound()) UI.toast(`${av(g.outcome.loser, 30)}<div><b>${esc(P(g.outcome.loser).name)} pays for the round</b><small>${esc(roundOutcomeText(g, ME && ME.pid))}</small></div>`, 4200);
+});
+
+// The round, kept with the night.
+function roundCard() {
+  const g = S.game; if (!g || g.status !== 'done' || !g.outcome) return '';
+  const L = g.outcome.loser;
+  return `<h2 class="h2">The round</h2><div class="gcard"><p><b>${esc(P(L).name)} paid for ${esc(roundNames(L) || 'the round')}.</b> ${esc(roundOutcomeText(g, null))}</p>${roundPlayersList(g, { moves: true })}<p class="note">Moves were sealed and opened on Stellar; the contract decided. ${txA(g.txs.settle && g.txs.settle.tx)}</p></div>`;
+}
+
+/* ---------- guest: off the hook after the round ---------- */
+SCREENS.free = {
+  render() {
+    const L = roundLoser(), s = shares(S), me = ME.pid, mine = (s.items[me] || 0) + (s.leftShare[me] || 0) + (s.tip[me] || 0);
+    return h(`<section>
+      <header class="scr-head"><span class="urlbar">${ic('lock', 13)}${esc(location.host)}/t/${esc(S.code)}</span></header>
+      <div class="scr-body paid-body">
+        <div class="okbadge">${ic('fist', 30)}</div>
+        <div class="paid-h"><h1 class="t-xl">${esc(P(L).name)} pays for you</h1><p class="sub">${eur(mine)} · ${esc(roundOutcomeText(S.game, me))}</p></div>
+        <div class="yours"><div class="yours-rc"></div><div class="yours-stamp">${stampSVG('ON ' + esc(P(L).name).toUpperCase().slice(0, 16))}</div></div>
+        <div class="progress-line"><span class="avs"></span><span class="pl-t"></span></div>
+        ${keepCard()}
+        <p class="note">${txA(S.game.txs.settle && S.game.txs.settle.tx, 'See the round on Stellar')}${signedIn() ? ' This night is in your profile.' : ' This night stays on this phone.'}</p>
+      </div>
+      <footer class="scr-foot"><button class="btn primary" type="button" data-act="night" ${S.phase === 'settled' ? '' : 'disabled'}>${S.phase === 'settled' ? `See the night${ic('chev')}` : 'Waiting for the others'}</button></footer>
+    </section>`);
+  },
+  enter(ctx) {
+    $('.yours-rc', ctx.el).appendChild(YourPart(ME.pid));
+    gsap.set($('.yours-stamp', ctx.el), { opacity: 1, rotation: -9 });
+    if (!RM) { gsap.from($('.okbadge', ctx.el), { scale: 0, rotation: -30, duration: .6, ease: 'back.out(2.4)' }); gsap.from($$('.paid-h > *, .yours, .progress-line, .note', ctx.el), { y: 18, opacity: 0, duration: .5, stagger: .07, ease: 'power3.out', delay: .15 }); }
+    const upd = () => {
+      const sh = shares(S), owing = S.order.filter(id => id !== S.host && sh.total[id] > 0), n = owing.filter(id => S.paid[id] && S.paid[id].confirmed).length;
+      $('.progress-line .avs', ctx.el).innerHTML = owing.map(id => av(id, 24, S.paid[id] && S.paid[id].confirmed ? '' : 'off')).join('');
+      $('.pl-t', ctx.el).innerHTML = S.phase === 'settled' ? '<b>Everyone’s quits.</b>' : `<b>${n} of ${owing.length}</b> paid ${esc(P(S.host).name)} back`;
+      const b = $('[data-act=night]', ctx.el); if (S.phase === 'settled') { b.disabled = false; b.innerHTML = `See the night${ic('chev')}`; }
+    };
+    upd();
+    on('paid', upd, ctx.bag); on('phase', upd, ctx.bag);
+    keepButton(ctx, () => UI.go('free', { dir: 'none' }));
+  },
+  act: { night() { nav(`/t/${S.code}?night`); } },
+};
+
 /* ================= routing ================= */
 function targetScreen() {
   const s = S, me = meIn() ? ME.pid : null;
@@ -1473,8 +1690,8 @@ function targetScreen() {
   if (me === s.host) return s.phase === 'open' ? 'invite' : s.phase === 'scanning' ? 'receipt' : 'live';
   if (s.phase === 'open' || s.phase === 'scanning') return 'wait';
   if (s.phase === 'claiming') return 'claim';
-  if (s.phase === 'settling') return s.paid[me] ? 'paid' : 'claim';
-  return 'paid';
+  if (s.phase === 'settling') return gameFree(s, me) ? 'free' : s.paid[me] ? 'paid' : 'claim';
+  return gameFree(s, me) ? 'free' : 'paid';
 }
 function routeTable(force) {
   if (!S) return;
@@ -1484,7 +1701,7 @@ function routeTable(force) {
     if (cur === 'pay' && t === 'claim' && S.phase === 'settling') return;
     if (cur === 'memory' || cur === 'profile' || cur === 'friends') return;
   }
-  const dir = { claim: 'up', live: 'fwd', paid: 'fade', memory: 'fade' }[t] || 'fwd';
+  const dir = { claim: 'up', live: 'fwd', paid: 'fade', free: 'fade', memory: 'fade' }[t] || 'fwd';
   UI.go(t, { dir: UI.cur ? dir : 'none' });
 }
 on('phase', () => { if (CODE) routeTable(false); });
