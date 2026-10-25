@@ -6,3 +6,9 @@ INVITE_CODES=WORD-1234
 AUTH_TEST=1
 # Optional: read a sample receipt instead of calling the model
 # AI_MOCK=1
+# Local only: keep the round on testnet while production runs it on mainnet (wrangler.jsonc).
+# The relay key is the one contracts/scripts/whopays.mjs makes in contracts/.keys/testnet.json
+NETWORK=testnet
+GAME_NETWORK=testnet
+GAME_CONTRACT=CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2
+GAME_SECRET=S...

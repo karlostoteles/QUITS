@@ -117,7 +117,7 @@ npm run dev                      # builds the app and serves it on http://localh
 | `WC_PROJECT_ID` | `wrangler.jsonc` | Reown / WalletConnect project (public) |
 | `CLAUDE_MODEL`, `AI_DAILY_MAX` | `wrangler.jsonc` | Model and daily cap on AI calls |
 | `GAME_SECRET` | secret | Stellar secret key of the account that relays the round's moves (the contract's admin). Without it the round is off |
-| `GAME_CONTRACT`, `GAME_NETWORK` | `wrangler.jsonc` | The `whopays` contract and its network (`testnet` or `public`) |
+| `GAME_CONTRACT`, `GAME_NETWORK` | `wrangler.jsonc` | The `whopays` contract and its network (`testnet` or `public`). Production runs the mainnet contract; `.dev.vars` points local development at the testnet one |
 
 ## Deploy
 

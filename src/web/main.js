@@ -151,6 +151,38 @@ function connect(code) {
 function disconnect() { clearTimeout(wsRetry); clearInterval(wsPing); if (WS) { const w = WS; WS = null; try { w.close(); } catch (e) { /* closed */ } } }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && CODE) { refresh(); if (!WS || WS.readyState > 1) connect(CODE); } });
 
+/* ---------- a page left open across a deploy: its lazy chunks are gone, so it reloads itself ---------- */
+const BUILD = (/\/assets\/(main-[^/?#]+\.js)/.exec(import.meta.url) || [])[1] || '';
+let stale = false, buildCheckedAt = 0;
+// Nothing on this screen would be lost by a reload (the table itself lives on the server).
+const canReload = name => name !== 'receipt' && !(S && S.game && S.game.status === 'sealing' && ME && !S.game.sealed[ME.pid]);
+// At most one reload a minute, so a chunk that is missing for some other reason cannot loop the page.
+function reloadNow() { if (Date.now() - LS.get('reloaded', 0) < 60000) return false; LS.set('reloaded', Date.now()); location.reload(); return true; }
+function reloadIfIdle() {
+  const cur = UI.cur || {};
+  if (stale && canReload(cur.name) && !(cur.name === 'snap' && cur.ctx.shot) && !/^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) reloadNow();
+}
+async function checkBuild() {
+  if (!BUILD || document.visibilityState !== 'visible' || Date.now() - buildCheckedAt < 30000) return;
+  buildCheckedAt = Date.now();
+  try {
+    const html = await (await fetch('/', { cache: 'no-store', headers: { accept: 'text/html' } })).text();
+    const m = /\/assets\/(main-[^/"?#]+\.js)/.exec(html);
+    if (m && m[1] !== BUILD) { stale = true; reloadIfIdle(); }
+  } catch (e) { /* offline: next time */ }
+}
+document.addEventListener('visibilitychange', checkBuild);
+setInterval(checkBuild, 10 * 60000);
+// import() that survives a deploy: a chunk that is gone means this page is old. Reload when nothing is lost; otherwise say so.
+async function lazy(load) {
+  try { return await load(); }
+  catch (e) {
+    if (!/MIME type|module script|dynamically imported|Failed to fetch|Importing a module/i.test(String(e && e.message))) throw e;
+    stale = true; reloadIfIdle();
+    throw new Error('Quits was updated while this page was open. Reload the page and try again.');
+  }
+}
+
 /* ================= account (Sign in with Google) ================= */
 const accounts = () => !!HEALTH.accounts;
 const signedIn = () => !!(SESSION && USER);
@@ -406,6 +438,7 @@ const UI = {
   root: null, toasts: null, cur: null,
   go(name, opts = {}) {
     const def = SCREENS[name]; if (!def) return;
+    if (stale && canReload(name) && reloadNow()) return;
     const prev = this.cur, ctx = { bag: [], opts, name };
     const el = def.render(ctx); el.classList.add('scr'); el.dataset.screen = name; ctx.el = el;
     this.root.insertBefore(el, this.toasts);
@@ -612,6 +645,7 @@ SCREENS.snap = {
   enter(ctx) {
     const el = ctx.el;
     gsap.from($$('.vf-c', el), { scale: 1.6, opacity: 0, duration: D(.5), stagger: .05, ease: 'power2.out', delay: .15 });
+    (window.requestIdleCallback || setTimeout)(() => lazy(() => import('./wallet.js')).catch(() => {})); // the wallet code, before there is a photo to lose
     ['#pick-cover', '#cam-cover'].forEach(sel => $(sel, el).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) compress(f).then(src => shootPlace(ctx, src)).catch(err => UI.toast(`<div><b>${esc(err.message)}</b></div>`)); }));
   },
   act: {
@@ -621,7 +655,7 @@ SCREENS.snap = {
     async paste(ctx) { try { const t = (await navigator.clipboard.readText()).trim(); if (t) $('#host-addr', ctx.el).value = t; } catch (e) { $('#host-addr', ctx.el).focus(); } },
     async wallet(ctx, b) {
       busy(b, true, 'Connecting');
-      try { const w = await import('./wallet.js'); const { address } = await w.connect(HEALTH); $('#host-addr', ctx.el).value = address; }
+      try { const w = await lazy(() => import('./wallet.js')); const { address } = await w.connect(HEALTH); $('#host-addr', ctx.el).value = address; }
       catch (e) { UI.toast(`<div><b>Couldn’t connect a wallet</b><small>${esc(e.message || 'Paste your address instead.')}</small></div>`, 3600); }
       busy(b, false);
     },
@@ -1187,7 +1221,7 @@ SCREENS.pay = {
   enter(ctx) {
     const conv = () => { const cents = shares(S).total[ME.pid] || 0; $('.conv', ctx.el).textContent = `${dueAmount(cents, ctx.asset, S.currency, S.rate && S.rate.eurUsd)} ${ctx.asset}${(ctx.asset === 'EURC' && S.currency === 'EUR') || (ctx.asset === 'USDC' && S.currency === 'USD') ? ' · no conversion' : ' at today’s rate'}`; };
     conv(); ctx.conv = conv;
-    if (HEALTH.wc || !isMobile) (window.requestIdleCallback || setTimeout)(() => import('./wallet.js').catch(() => {}));
+    if (HEALTH.wc || !isMobile) (window.requestIdleCallback || setTimeout)(() => lazy(() => import('./wallet.js')).catch(() => {}));
     if (S.intents[ME.pid]) showManual(ctx);
     on('paid', d => { if (d.pid === ME.pid) UI.go('paid', { dir: 'fade' }); }, ctx.bag);
     on('intents', () => { if (ctx.manualOpen) showManual(ctx); }, ctx.bag);
@@ -1204,7 +1238,7 @@ SCREENS.pay = {
       try {
         await act('intent', { asset: ctx.asset });
         const it = S.intents[ME.pid];
-        const w = await import('./wallet.js');
+        const w = await lazy(() => import('./wallet.js'));
         const r = await w.pay(HEALTH, { network: S.network, to: S.hostAddress, asset: it.asset, amount: it.amount, memo: it.memo, kind: b.dataset.kind });
         UI.toast(`<div><b>Sent. Checking on Stellar…</b></div>`, 2000);
         const j = await act('paid', { tx: r.hash, wallet: r.wallet });
