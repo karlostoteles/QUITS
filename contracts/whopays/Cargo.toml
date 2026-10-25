@@ -1,0 +1,20 @@
+[package]
+name = "whopays"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "Who pays the bill? A commit-reveal coin game judged by a Soroban contract (Quits, HackMeridian 2026)."
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { version = "29.0.1" }
+
+[dev-dependencies]
+soroban-sdk = { version = "29.0.1", features = ["testutils"] }
+ed25519-dalek = { version = "2.2.0", default-features = false, features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"

@@ -58,12 +58,20 @@ export function shares(s) {
   const tipTotal = Math.round(sub * (s.tip || 0) / 100);
   const tips = splitCents(tipTotal, base);
   s.order.forEach((id, i) => { tip[id] = tips[i]; total[id] = base[i] + tips[i]; });
-  const owing = s.order.filter(id => id !== s.host);
+  // A settled round of "Who pays?": the loser pays for everyone who stayed in the round.
+  const g = s.game, pool = gamePool(s);
+  if (pool) { let pot = 0; pool.forEach(id => { pot += total[id]; if (id !== g.outcome.loser) total[id] = 0; }); total[g.outcome.loser] = pot; }
+  const owing = s.order.filter(id => id !== s.host && total[id] > 0);
   const owed = owing.reduce((a, id) => a + total[id], 0);
   const back = owing.filter(id => s.paid[id] && s.paid[id].confirmed).reduce((a, id) => a + s.paid[id].cents, 0);
   const all = s.order.reduce((a, id) => a + total[id], 0);
   return { items, leftShare, tip, total, unclaimed: s.leftover ? 0 : left, leftRaw: left, tipTotal, owed, back, all, sub };
 }
+
+// Who a settled round covers (the players still in it when it was settled), or null.
+export const gamePool = s => (s.game && s.game.status === 'done' && s.game.outcome ? (s.game.active && s.game.active.length ? s.game.active : s.game.players).filter(id => s.order.includes(id)) : null);
+// True for someone whose part is paid by the round's loser.
+export const gameFree = (s, id) => { const p = gamePool(s); return !!p && p.includes(id) && s.game.outcome.loser !== id; };
 
 // Text memo that identifies who paid, at most 28 bytes: "QUITS BEAT7KQ A4".
 export const memoFor = (code, pid) => `QUITS ${code} ${pid}`.slice(0, 28);

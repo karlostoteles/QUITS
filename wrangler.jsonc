@@ -16,19 +16,23 @@
     "bindings": [
       { "name": "TABLE", "class_name": "TableDO" },
       { "name": "LIMITER", "class_name": "LimiterDO" },
-      { "name": "USER", "class_name": "UserDO" }
+      { "name": "USER", "class_name": "UserDO" },
+      { "name": "CHAIN", "class_name": "ChainDO" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["TableDO", "LimiterDO"] },
-    { "tag": "v2", "new_sqlite_classes": ["UserDO"] }
+    { "tag": "v2", "new_sqlite_classes": ["UserDO"] },
+    { "tag": "v3", "new_sqlite_classes": ["ChainDO"] }
   ],
   "vars": {
     "NETWORK": "public",
     "CLAUDE_MODEL": "claude-haiku-5-5",
     "AI_DAILY_MAX": "400",
     "WC_PROJECT_ID": "0e3ce5dbd44550d03e1866db08076118",
-    "GOOGLE_CLIENT_ID": "172705330362-qnce26l3efvodmjh61iro081rfphfbea.apps.googleusercontent.com"
+    "GOOGLE_CLIENT_ID": "172705330362-qnce26l3efvodmjh61iro081rfphfbea.apps.googleusercontent.com",
+    "GAME_NETWORK": "testnet",
+    "GAME_CONTRACT": "CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2"
   },
   "observability": { "enabled": true }
 }

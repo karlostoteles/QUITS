@@ -1,12 +1,14 @@
 import { DurableObject } from 'cloudflare:workers';
 import { TableDO } from './table.js';
 import { UserDO } from './user.js';
+import { ChainDO } from './chaindo.js';
+import { chainInfo } from './game.js';
 import { json, err, parseDataUrl, makeCode } from './util.js';
 import { readSign } from './ai.js';
 import { eurUsd } from './stellar.js';
 import { verifyGoogle, makeSession, readSession, sessionToken } from './auth.js';
 
-export { TableDO, UserDO };
+export { TableDO, UserDO, ChainDO };
 
 // Daily counters (AI calls overall, sign reads per visitor) so a busy day can't drain the API credits.
 export class LimiterDO extends DurableObject {
@@ -95,7 +97,7 @@ export default {
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
       if (p === '/api/health') {
-        return json({ ok: true, network: env.NETWORK || 'testnet', wc: env.WC_PROJECT_ID || '', invite: invites(env).length > 0, accounts: accountsOn(env), google: env.GOOGLE_CLIENT_ID || '', authTest: env.AUTH_TEST === '1' });
+        return json({ ok: true, network: env.NETWORK || 'testnet', wc: env.WC_PROJECT_ID || '', invite: invites(env).length > 0, accounts: accountsOn(env), google: env.GOOGLE_CLIENT_ID || '', authTest: env.AUTH_TEST === '1', game: chainInfo(env) });
       }
       if (p === '/api/rate') return json({ eurUsd: await eurUsd() }, 200, { 'cache-control': 'public, max-age=300' });
 

@@ -4,6 +4,7 @@ import { shares, unitsClaimed, lines, memoFor, dueAmount, SWATCHES } from '../sh
 import { json, err, rid, sha, parseDataUrl, validAccount, clean } from './util.js';
 import { readReceipt } from './ai.js';
 import { verifyTx, findPayment, canReceive, eurUsd } from './stellar.js';
+import * as G from './game.js';
 
 const OPEN = ['open', 'scanning', 'claiming'];
 const TIPS = [0, 5, 10, 15];
@@ -140,6 +141,7 @@ export class TableDO extends DurableObject {
       order: [host.pid], people: { [host.pid]: host.person },
       phase: 'open', receipt: null, tip: 0, claims: {}, ready: [], leftover: false,
       paid: {}, intents: {}, photos: [], t0: Date.now(), tSettled: null, rate: null,
+      game: null, settleWanted: false,
     };
     if (cover) this.s.coverId = this.putImage(cover, host.pid);
     if (b.uid) await this.linkAccount(b.uid, host.pid);
@@ -251,6 +253,15 @@ export class TableDO extends DurableObject {
       else if (t === 'check') { need(s.intents[pid], 'Nothing to check'); await this.detect([pid]); }
       else if (t === 'rename') { need(host, 'Only the host'); s.name = clean(b.name, 40) || s.name; }
       else if (t === 'contact') { s.people[pid].contact = clean(b.contact, 40); }
+      // ---- "Who pays?": a round of hidden coins judged on Stellar ----
+      else if (t === 'gameAsk') { need(host, 'Only the host'); need(s.phase === 'claiming', 'The round is played before paying back'); const ci = G.chainInfo(this.env); need(ci, 'Rounds are not set up on this server'); G.propose(s, ci); }
+      else if (t === 'gameAnswer') { G.answer(s, pid, b.yes !== false, String(b.pk || '')); }
+      else if (t === 'gameCancel') { need(host, 'Only the host'); G.cancel(s); this.afterGame(); }
+      else if (t === 'gameStart') { need(host, 'Only the host'); await G.start(this, s); }
+      else if (t === 'gameSeal') { G.seal(s, pid, String(b.commitment || ''), String(b.sig || '')); await this.wake(1200); }
+      else if (t === 'gameOpen') { await G.open(s, pid, b.coins, b.guess, String(b.salt || '')); await this.wake(900); }
+      else if (t === 'gameClose') { need(host, 'Only the host'); await G.close(this, s); this.afterGame(); }
+      else if (t === 'gameRetry') { need(host, 'Only the host'); need(s.game, 'No round'); s.game.error = null; s.game.tries = 0; await this.wake(100); }
       else return err('Unknown action', 400);
     } catch (e) {
       return err(e.message, e.code || 409);
@@ -265,15 +276,28 @@ export class TableDO extends DurableObject {
   }
   settle() {
     const s = this.s;
+    // A round in progress decides who pays: the receipt closes once it is over.
+    if (G.gameActive(s.game)) { s.settleWanted = true; return; }
+    s.settleWanted = false;
     if (shares(s).leftRaw > 0) s.leftover = true;
     s.phase = 'settling';
     this.checkSettled();
   }
+  afterGame() {
+    const s = this.s;
+    if (!G.gameActive(s.game) && s.settleWanted && s.phase === 'claiming') this.settle();
+  }
   checkSettled() {
     const s = this.s;
     if (s.phase !== 'settling') return;
-    const owing = s.order.filter(id => id !== s.host);
+    const sh = shares(s);
+    const owing = s.order.filter(id => id !== s.host && sh.total[id] > 0);
     if (owing.every(id => s.paid[id] && s.paid[id].confirmed)) { s.phase = 'settled'; s.tSettled = Date.now(); }
+  }
+  // Runs the alarm within ms, unless it is already due sooner.
+  async wake(ms) {
+    const at = Date.now() + ms, cur = await this.ctx.storage.getAlarm();
+    if (!cur || cur > at) await this.ctx.storage.setAlarm(at);
   }
 
   // Look on Stellar for payments sent by hand with our memo.
@@ -295,11 +319,22 @@ export class TableDO extends DurableObject {
   }
 
   async alarm() {
-    if (!this.s || this.s.phase !== 'settling') return;
-    const open = Object.keys(this.s.intents).filter(pid => Date.now() - this.s.intents[pid].at < 45 * 60 * 1000);
-    if (!open.length) return;
-    try { if (await this.detect(open)) await this.commit(); } catch (e) { /* Horizon hiccup: try again */ }
-    if (Object.keys(this.s.intents).length) await this.ctx.storage.setAlarm(Date.now() + 6000);
+    if (!this.s) return;
+    let next = null;
+    if (G.gameActive(this.s.game)) {
+      let r = { changed: false, next: 8000 };
+      try { r = await G.relay(this); } catch (e) { this.s.game.error = String(e.message || e).slice(0, 200); r = { changed: true, next: 6000 }; }
+      if (r.changed) { this.afterGame(); await this.commit(); }
+      if (G.gameActive(this.s.game) && this.s.game.status !== 'invite') next = r.next || (this.s.game.pending.seal.length || this.s.game.pending.open.length ? 1500 : null);
+    }
+    if (this.s.phase === 'settling') {
+      const open = Object.keys(this.s.intents).filter(pid => Date.now() - this.s.intents[pid].at < 45 * 60 * 1000);
+      if (open.length) {
+        try { if (await this.detect(open)) await this.commit(); } catch (e) { /* Horizon hiccup: try again */ }
+        if (Object.keys(this.s.intents).length) next = Math.min(next || 6000, 6000);
+      }
+    }
+    if (next) await this.ctx.storage.setAlarm(Date.now() + next);
   }
 
   webSocketMessage(ws, msg) { if (msg === 'ping') ws.send('pong'); }

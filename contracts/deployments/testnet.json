@@ -1,0 +1,87 @@
+{
+  "network": "testnet",
+  "contract": "CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2",
+  "admin": "GCZ36DO3RVQ3RVCHGGF5EWF7SJWWFIN4G46MKY4LHSJIH37HUYWYWR72",
+  "wasm_sha256": "b06ead9fdff2940aac99a6871adcf1f0596e21bc78f9cffb00a7a3dc50eff23e",
+  "wasm_bytes": 16080,
+  "note": "Testnet's rent is in surge mode this week (live state above its 4 GB target): a 16 KB upload is quoted at ~2,700 testnet XLM, so uploads go fee-bumped through the stellar CLI and rounds live in temporary storage.",
+  "events": [
+    {
+      "at": "2026-10-25T15:03:49+00:00",
+      "kind": "deploy-superseded",
+      "contract": "CCWBDAO2NT7KLBYPWNPAPCG7DSYSRW7P3QIPYLO2PI4J43W57FTN5RNK",
+      "upload_tx": "194b709d7279349c3e16dadee5fbd1cd0771c55c850bf0fd3f6b757d981a2b5f",
+      "create_tx": "d45f8b76de3cfbead92a4cff33a64c46c443976d7c22ad39b9008f5309312424",
+      "wasm_sha256": "1de601904cf6f8400e76d793b932749383f59da1bfb93afb1aa873f91134684f",
+      "note": "First build kept rounds in persistent storage for 30 days; a create was quoted at ~9,000 testnet XLM of rent, so it was replaced."
+    },
+    {
+      "at": "2026-10-25T15:03:49+00:00",
+      "kind": "deploy",
+      "upload_tx": "3a48eb12ffc28ac8d5f9ceaf80976d2d002fc88e7f5ca81019618ae5c2aef70a",
+      "create_tx": "e255230ec2853349ee975430d1f38bd2f78842cdf083ac2517c1ed64a300120d",
+      "contract": "CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2"
+    },
+    {
+      "at": "2026-10-25T15:04:22.904Z",
+      "kind": "round",
+      "players": 3,
+      "game": "8b9c3f996d5a0e433b54041dd1f35ce7d00dbb5ddffd938daf72390187d6a409",
+      "create_tx": "afdb538dfac6c4c20c7a19a2ce3f71c4ee71f1d1abb6558a4d06871b6fa44b64",
+      "seal_txs": [
+        "33f5fe22ccc05e069539a34538e52c38ce246fa0c0250a629d7e68d5472eb96a",
+        "f0edb76207e038fa13c311380b9ddcffaed53c007326fc4bcdad4757c54dcd25"
+      ],
+      "open_txs": [
+        "634fcc4a3afcc29be713c816cfcb6684e722704ed86d7e123ba398d1da0b8ced",
+        "64d5e589f3a0fc00d38c75353ddc3b2dd2021b799f8be843c4210bb5385ffd5c"
+      ],
+      "settle_tx": null,
+      "loser": 2,
+      "total": 4,
+      "reason": 1,
+      "drawn": false,
+      "instructions": {
+        "create": 727384,
+        "seal_one": 1254064,
+        "seal_rest": 1800834,
+        "open_one": 890775,
+        "open_rest": 1128217
+      }
+    },
+    {
+      "at": "2026-10-25T15:04:42.941Z",
+      "kind": "forged",
+      "game": "9ef792df2942cf19a95f66c5f023cf538621ac6d52c7a004a09bd7ca4b930824",
+      "create_tx": "4e510047cbbc22834a46ce6656de8b52c0dde82071e418c05adcf761c5aca69a",
+      "refused": true
+    },
+    {
+      "at": "2026-10-25T15:05:57.584Z",
+      "kind": "round-silent",
+      "players": 3,
+      "game": "89bd3fb4a11a8e7dbb4e3c5b54850a58ae4cc6125e001b46d28d160f6f2bcc0a",
+      "create_tx": "76f21c9b4364cf4be825b2ab7b5741c12b8fb844d6065f32a11f9e8d6f280037",
+      "seal_txs": [
+        "1a8641548a52509affea24c26e0056d964529bc53f9bd1a1a8d6049618948c12",
+        "ced82d6468b9e4a789d451e4d02246866253f3e83f222d5ef386cf9787a04190"
+      ],
+      "open_txs": [
+        "c017dc1991164eb7fffd8a3dd1bb6b57011327e4cb5aa7f96bb7ffc9702eb8ce",
+        "44a71c1874f427e351cb70a31c38b75c4b3d4387e50aba9406df5bc3f831c3c1"
+      ],
+      "settle_tx": "44a71c1874f427e351cb70a31c38b75c4b3d4387e50aba9406df5bc3f831c3c1",
+      "loser": 2,
+      "total": 2,
+      "reason": 0,
+      "drawn": false,
+      "instructions": {
+        "create": 727384,
+        "seal_one": 1254064,
+        "seal_rest": 1800834,
+        "open_one": 890775,
+        "open_rest": 891924
+      }
+    }
+  ]
+}
