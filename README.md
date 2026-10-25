@@ -172,6 +172,6 @@ Quits is built by a solo founder, Carlos de la Figuera. The code is written by C
 | | |
 |---|---|
 | **Before HackMeridian** (the `pre-hackmeridian` branch, last commit `5efdcad`, 21 Oct) | The whole bill-splitting app: tables, QR, AI-read receipts, live claiming, wallet and memo payments on mainnet, Google accounts, nights with photos. |
-| **During HackMeridian** (25–26 Oct, every commit after `5efdcad` on `main`) | *Who pays?*: the `whopays` contract and its tests, its deployments on testnet and mainnet, the relay (ChainDO, chain.js, game.js), the round inside the table and its settlement, the phone screens, the two tests of the round, this README. |
+| **During HackMeridian** (25–26 Oct, every commit after `5efdcad` on `main`) | *Who pays?*: the `whopays` contract and its tests, its deployments on testnet and mainnet, the relay (ChainDO, chain.js, game.js), the round inside the table and its settlement, the phone screens, the tests of the round and of the choices around it, this README; and what a real table at the venue taught us on the night: the host now picks the round or the closing once everyone is done, a cash mark can be taken back, the receipt can be read again, a page left open across a deploy reloads itself. |
 
 Everything was built in the open on GitHub; the commit log is the timeline.
