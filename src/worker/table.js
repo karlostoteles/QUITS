@@ -230,6 +230,11 @@ export class TableDO extends DurableObject {
         need(!(s.paid[pid] && s.paid[pid].confirmed), 'Already paid');
         s.paid[pid] = { how: 'cash', cents: shares(s).total[pid], confirmed: false, at: Date.now() };
       }
+      else if (t === 'uncash') {
+        // Marked as cash by mistake: while the host has not confirmed it, the payer can take it back and pay another way.
+        const p = s.paid[pid]; need(p && p.how === 'cash', 'Nothing to take back'); need(!p.confirmed, `${s.people[s.host].name} already confirmed your cash`);
+        delete s.paid[pid];
+      }
       else if (t === 'confirmCash') {
         need(host, 'Only the host'); const p = s.paid[b.who]; need(p && p.how === 'cash', 'Nothing to confirm');
         p.confirmed = true; p.at = Date.now(); this.checkSettled();

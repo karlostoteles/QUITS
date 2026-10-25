@@ -126,6 +126,7 @@ function applyState(ns) {
   if (JSON.stringify(os.ready) !== JSON.stringify(ns.ready)) emit('ready', {});
   if (!os.leftover && ns.leftover && os.receipt) emit('leftover', { cents: shares(os).leftRaw });
   for (const pid in ns.paid) { const a = os.paid[pid], b = ns.paid[pid]; if (!a) emit('paid', { pid }); else if (!a.confirmed && b.confirmed) emit('paid', { pid, confirm: true }); }
+  for (const pid in os.paid) if (!ns.paid[pid]) emit('paid', { pid, undo: true });
   const had = new Set(os.photos.map(p => p.id));
   ns.photos.filter(p => !had.has(p.id)).reverse().forEach(p => emit('photo', { photo: p, pid: p.by }));
   if (JSON.stringify(os.intents) !== JSON.stringify(ns.intents)) emit('intents');
@@ -809,7 +810,7 @@ async function readReceiptPhoto(ctx, file) {
     const r = await api(`/t/${S.code}/receipt`, { image: data }, ME);
     if (sweep) sweep.kill();
     if (ctx.dead) return;
-    if (!r.readable) { body.innerHTML = `<div class="empty"><b>Couldn’t read that one</b>Try again flat and in better light, or type the lines yourself.</div>`; foot.innerHTML = `<div class="choice"><button class="btn primary" type="button" data-act="shoot">${ic('camera')}Try another photo</button><button class="btn ghost" type="button" data-act="type">Type the lines</button></div><input id="cam-rc" class="cap-in" type="file" accept="image/*" capture="environment">`; $('#cam-rc', ctx.el).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readReceiptPhoto(ctx, f); }); return; }
+    if (!r.readable) { body.innerHTML = `<div class="empty"><b>Couldn’t read that one</b>Try again flat and in better light, or type the lines yourself.</div>`; foot.innerHTML = `<div class="choice"><button class="btn primary" type="button" data-act="shoot">${ic('camera')}Try another photo</button><button class="btn ghost" type="button" data-act="type">Type the lines</button></div><input id="cam-rc" class="cap-in" type="file" accept="image/*">`; $('#cam-rc', ctx.el).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readReceiptPhoto(ctx, f); }); return; }
     ctx.draft = { lines: r.lines.map((l, i) => ({ ...l, id: 'd' + i })), printedTotal: r.total || null, imageId: r.imageId, currency: r.currency === 'USD' ? 'USD' : 'EUR', tip: 0 };
     saveDraft(ctx);
     showReview(ctx, true);
@@ -831,7 +832,9 @@ function showReview(ctx, animate) {
   const rec = Receipt({ mode: 'review', draft: d.lines });
   const wrap = $('.print-wrap', body); wrap.appendChild(rec.el);
   rec.el.addEventListener('click', e => { if (e.target.closest('[data-rv=add]')) { openLineSheet(ctx, -1); return; } const le = e.target.closest('.rc-line'); if (le) openLineSheet(ctx, Number(le.dataset.i)); });
-  foot.innerHTML = `<button class="btn primary" type="button" data-act="send">Send to the table${ic('chev')}</button>`;
+  // Read wrong? Another photo (camera or library) or typing it, without leaving the screen.
+  foot.innerHTML = `<button class="btn primary" type="button" data-act="send">Send to the table${ic('chev')}</button><div class="row2"><label class="btn ghost sm" for="again-rc">${ic('camera', 18)}Another photo</label><button class="btn ghost sm" type="button" data-act="type">${ic('edit', 18)}Type it</button></div><input id="again-rc" class="cap-in" type="file" accept="image/*">`;
+  $('#again-rc', ctx.el).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readReceiptPhoto(ctx, f); });
   if (animate && !RM) { const full = rec.el.offsetHeight; wrap.style.height = '0px'; gsap.to(wrap, { height: full, duration: 2.1, ease: 'steps(28)', onComplete: () => { wrap.style.height = ''; } }); gsap.from($('.check', body), { y: 14, opacity: 0, duration: .45, delay: 2.1 }); }
 }
 function openLineSheet(ctx, i) {
@@ -1082,7 +1085,9 @@ function refreshLive(ctx, animate = true) {
   }
 }
 function livePaid(ctx, d) {
-  const id = d.pid, p = S.paid[id]; if (!p) return;
+  const id = d.pid, p = S.paid[id];
+  if (d.undo) { UI.toast(`${av(id, 30)}<div><b>${esc(P(id).name)} took the cash back</b><small>They’ll pay you another way</small></div>`, 3000); return; }
+  if (!p) return;
   if (d.confirm) { UI.toast(`${av(id, 30)}<div><b>Cash from ${esc(P(id).name)}</b><small>Confirmed by you</small></div><span class="t-amt">${eur(p.cents)}</span>`); coin(ctx, id); return; }
   if (p.how === 'cash') { UI.toast(`${av(id, 30)}<div><b>${esc(P(id).name)} says they paid cash</b><small>Tap “Confirm cash” when you have it</small></div><span class="t-amt">${eur(p.cents)}</span>`, 3600); return; }
   UI.toast(`${av(id, 30)}<div><b>${esc(P(id).name)} paid you</b><small>${esc(p.amount ? Number(p.amount).toFixed(2) : '')} ${esc(p.asset)} · ledger ${fmtL(p.ledger)}</small></div><span class="t-amt">${eur(p.cents)}</span>`);
@@ -1291,6 +1296,7 @@ SCREENS.paid = {
         <div class="progress-line"><span class="avs"></span><span class="pl-t"></span></div>
         ${keepCard()}
         <p class="note">${ex ? `<a class="txlink" href="${ex}" target="_blank" rel="noopener">See the payment on Stellar ${ic('ext', 13)}</a>. ` : ''}${signedIn() ? 'This night is in your profile.' : 'This night stays on this phone.'}</p>
+        ${cash && !p.confirmed ? `<button class="btn ghost sm undo-cash" type="button" data-act="undo">Not paid yet? Pay ${esc(host)} another way</button>` : ''}
       </div>
       <footer class="scr-foot"><button class="btn primary" type="button" data-act="night" disabled>Waiting for the others</button></footer>
     </section>`);
@@ -1305,12 +1311,15 @@ SCREENS.paid = {
       const b = $('[data-act=night]', ctx.el); if (S.phase === 'settled') { b.disabled = false; b.innerHTML = `See the night${ic('chev')}`; }
     };
     upd();
-    on('paid', d => { upd(); if (d.pid === ME.pid && d.confirm) UI.go('paid', { dir: 'none' }); }, ctx.bag);
+    on('paid', d => { if (d.pid === ME.pid && d.undo) { UI.go('claim', { dir: 'back' }); return; } upd(); if (d.pid === ME.pid && d.confirm) UI.go('paid', { dir: 'none' }); }, ctx.bag);
     on('phase', () => { upd(); if (S.phase === 'settled') stampYours(ctx); }, ctx.bag);
     if (S.phase === 'settled') stampYours(ctx, false);
     keepButton(ctx, () => UI.go('paid', { dir: 'none' }));
   },
-  act: { night() { nav(`/t/${S.code}?night`); } },
+  act: {
+    night() { nav(`/t/${S.code}?night`); },
+    async undo(ctx, b) { busy(b, true); try { await act('uncash'); } catch (e) { busy(b, false); } },
+  },
 };
 // Signing in keeps the night: photos, who was there and what you paid, on any phone.
 function keepCard() {

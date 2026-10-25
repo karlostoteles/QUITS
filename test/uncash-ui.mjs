@@ -1,0 +1,40 @@
+// "Paid in cash" by mistake: while the host has not confirmed it, the payer takes it back and pays another way.
+import { chromium } from 'playwright';
+import fs from 'fs';
+const BASE = process.env.BASE || 'http://localhost:8787';
+const INVITE = (fs.readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').match(/INVITE_CODES=([^,\n]+)/) || [])[1];
+const t0 = Date.now(), log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
+const browser = await chromium.launch();
+const phone = async name => { const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }); const p = await c.newPage(); p.on('pageerror', e => log(name, 'page error', e.message)); return p; };
+const host = await phone('host'), ana = await phone('ana');
+const img = 'data:image/png;base64,' + fs.readFileSync(new URL('./tiny.png', import.meta.url)).toString('base64');
+const call = async (path, body, creds) => { const r = await fetch(BASE + path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-quits-invite': INVITE, ...(creds ? { 'x-quits-pid': creds.pid, 'x-quits-token': creds.token } : {}) }, body: JSON.stringify(body) }); const j = await r.json(); if (!r.ok) throw new Error(path + ' ' + JSON.stringify(j)); return j; };
+const t = await call('/api/tables', { name: 'Uncash', hostName: 'Carlos', color: '#FFE45C', address: 'GBVSOHYYIFHDNYEODKCQOGOYHO6BDXGXQJGJHEA2KTCMCOKWGN7EKFUF', cover: img });
+const hc = { pid: t.pid, token: t.token };
+const ac = await call(`/api/t/${t.code}/join`, { name: 'Ana', color: '#FF8AC2' });
+const rc = await call(`/api/t/${t.code}/receipt`, { image: img }, hc);
+let r = await call(`/api/t/${t.code}/act`, { type: 'publish', lines: rc.lines, tip: 0, imageId: rc.imageId, printedTotal: rc.total }, hc);
+const ids = r.s.receipt.lines.map(l => l.id);
+await call(`/api/t/${t.code}/act`, { type: 'claim', lid: ids[0], delta: 1 }, hc);
+await call(`/api/t/${t.code}/act`, { type: 'claim', lid: ids[1], delta: 1 }, ac);
+await call(`/api/t/${t.code}/act`, { type: 'close' }, hc);
+for (const [p, c] of [[host, hc], [ana, ac]]) {
+  await p.goto(BASE + '/');
+  await p.evaluate(([code, creds]) => localStorage.setItem('quits:t:' + code, JSON.stringify(creds)), [t.code, c]);
+  await p.goto(`${BASE}/t/${t.code}`);
+}
+await host.waitForSelector('[data-screen=live]'); await ana.waitForSelector('[data-screen=claim]');
+await ana.click('[data-act=pay]');
+await ana.waitForSelector('[data-screen=pay]');
+await ana.click('[data-act=cash]');
+await ana.waitForSelector('[data-screen=paid] .undo-cash', { timeout: 10000 });
+let s = (await (await fetch(`${BASE}/api/t/${t.code}/state`)).json()).s;
+log('marked as cash:', s.paid[ac.pid] && s.paid[ac.pid].how, '| host sees confirm button:', !!(await host.$('[data-act=confirm]')));
+await ana.waitForTimeout(1500); await ana.screenshot({ path: 'docs/screens/_paid-cash.png' });
+await ana.click('[data-screen=paid] .undo-cash');
+await ana.waitForSelector('[data-screen=claim] [data-act=pay]:not([disabled])', { timeout: 10000 });
+await host.waitForFunction(() => !document.querySelector('[data-act=confirm]'), null, { timeout: 10000 });
+s = (await (await fetch(`${BASE}/api/t/${t.code}/state`)).json()).s;
+log('taken back: paid', JSON.stringify(s.paid), '| ana back on the pay screen, host no longer asked to confirm');
+console.log(!s.paid[ac.pid] ? 'OK' : 'FAIL');
+await browser.close();
