@@ -1,0 +1,45 @@
+{
+  "network": "public",
+  "events": [
+    {
+      "at": "2026-10-25T18:47:45.743Z",
+      "kind": "deploy",
+      "contractId": "CAYHWHSNRG6R436BHAHI4Y6IXVPWS3ZTEUBSGZ7ORHSYAK2ORE5UH5UA",
+      "uploadTx": "96927bb5b76a4e068d1bef90340be39b84c077f28308ecd443ddff9be00d6fb0",
+      "createTx": "d5080f92548f09d196f7bdc86d32ae22e791086b22b3536c14adb2e01d83c2a1",
+      "wasmSha256": "b06ead9fdff2940aac99a6871adcf1f0596e21bc78f9cffb00a7a3dc50eff23e",
+      "wasmBytes": 16080
+    },
+    {
+      "at": "2026-10-25T18:48:25.335Z",
+      "kind": "round",
+      "players": 3,
+      "game": "57fa07c2b2fc09cb2e65e821e8fc4d824a56267de182c613bcee5326ed2682fc",
+      "create_tx": "e24977cc0a8066f4231077e7c8dd4c1844b9caed05c3e4b75af97698325ae317",
+      "seal_txs": [
+        "dfdd48140d7a55b85c04e4716d838c5e7ed55a3e79aae973408ede995c573ea4",
+        "6d2996e59aba5ba83b42c6a186966e97567e90d122e223381b2da91e5ff24355"
+      ],
+      "open_txs": [
+        "b1647a27123d18a35c99258b77f7a16b44a63be320297fabb24267ef4c8a9903",
+        "857d614bc38fdab212a132ce137139515e0d534ebd0c67aaf9f7e511ee19c93b"
+      ],
+      "settle_tx": null,
+      "loser": 0,
+      "total": 2,
+      "reason": 1,
+      "drawn": true,
+      "instructions": {
+        "create": 727384,
+        "seal_one": 1254064,
+        "seal_rest": 1800834,
+        "open_one": 890775,
+        "open_rest": 1187987
+      }
+    }
+  ],
+  "contract": "CAYHWHSNRG6R436BHAHI4Y6IXVPWS3ZTEUBSGZ7ORHSYAK2ORE5UH5UA",
+  "admin": "GBCLXIKXD7SKSCNT6MXZY2WOOVQBEI7T4O3NOCWG2BB5FC5QGOSNFF4U",
+  "wasm_sha256": "b06ead9fdff2940aac99a6871adcf1f0596e21bc78f9cffb00a7a3dc50eff23e",
+  "wasm_bytes": 16080
+}

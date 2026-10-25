@@ -20,7 +20,19 @@ Errors: `NoSuchGame` 1, `GameExists` 2, `BadParams` 3, `WrongPhase` 4, `NotAPlay
 
 Events: `created`, `sealed`, `opening`, `opened`, `settled` (loser, total, reason, drawn), `cancelled`.
 
-## What it costs (testnet, protocol 29, 25 Oct 2026)
+## What it costs (mainnet, protocol 29, 25 Oct 2026)
+
+| Transaction | Instructions | Fee |
+|---|---|---|
+| `create`, 3 players | 727,384 | 0.00167 XLM |
+| `commit_many`, 1 seal | 1,254,064 | 0.00116 XLM |
+| `commit_many`, 2 seals (opens the reveal window) | 1,800,834 | 0.00139 XLM |
+| `reveal_many`, 1 opening | 890,775 | 0.00128 XLM |
+| `reveal_many`, 2 openings (settles the round) | 1,187,987 | 0.00163 XLM |
+
+A three-player round is five transactions and 0.007 XLM. Uploading the 16 KB of Wasm and creating the contract cost 18.4 XLM, once. The round is in [`deployments/public.json`](deployments/public.json), with the transaction hashes.
+
+### On testnet the same week
 
 | Transaction | Instructions | Fee |
 |---|---|---|
@@ -31,7 +43,7 @@ Events: `created`, `sealed`, `opening`, `opened`, `settled` (loser, total, reaso
 | `reveal_many`, 2 openings (settles the round) | 1,128,217 | 0.0189 XLM |
 | `settle` after a timeout | 891,924 | 0.0012 XLM |
 
-A three-player round is five transactions and about 0.1 XLM. The fees above include testnet's rent, which was in surge pricing that week (the live Soroban state was above its target size, which is also why uploading the 16 KB of Wasm was quoted at ~2,700 testnet XLM and went through a fee bump). Rounds therefore live in temporary storage with the shortest TTL the network allows (720 ledgers, about an hour): the transactions and their events are the record, and Quits keeps the verdict with the night.
+About 0.1 XLM per round: testnet's rent was in surge pricing that week (the live Soroban state was above its target size, which is also why uploading the Wasm there was quoted at ~2,700 testnet XLM and went through a fee bump). Rounds therefore live in temporary storage with the shortest TTL the network allows (720 ledgers, about an hour): the transactions and their events are the record, and Quits keeps the verdict with the night.
 
 ## Build, test, deploy
 
@@ -46,7 +58,12 @@ node scripts/whopays.mjs silent               # one player never opens; settled 
 node scripts/whopays.mjs forged               # a seal with the wrong signature is refused
 ```
 
-The relay account's key lives in `.keys/testnet.json` (git-ignored; made and funded by friendbot on first use). Deployments and the rounds played from the script are logged in `deployments/testnet.json`. Testnet: `CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2` (Wasm `b06ead9f…`).
+The relay account's key lives in `.keys/<network>.json` (git-ignored; on testnet it is made and funded by friendbot on first use, on mainnet `NETWORK=public node scripts/whopays.mjs deploy` prints the address to fund, about 20 XLM for the upload and the contract). Deployments and the rounds played from the script are logged in `deployments/<network>.json`.
+
+- Mainnet: `CAYHWHSNRG6R436BHAHI4Y6IXVPWS3ZTEUBSGZ7ORHSYAK2ORE5UH5UA` ([stellar.expert](https://stellar.expert/explorer/public/contract/CAYHWHSNRG6R436BHAHI4Y6IXVPWS3ZTEUBSGZ7ORHSYAK2ORE5UH5UA)), admin `GBCLXIKXD7SKSCNT6MXZY2WOOVQBEI7T4O3NOCWG2BB5FC5QGOSNFF4U`. The live app uses this one.
+- Testnet: `CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2)).
+
+Both run the same Wasm, `b06ead9fdff2940aac99a6871adcf1f0596e21bc78f9cffb00a7a3dc50eff23e` (16,080 bytes): `stellar contract build` is reproducible, so anyone can rebuild it and compare the hash.
 
 ## What it does not do
 

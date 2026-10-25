@@ -2,7 +2,7 @@
 
 Split the bill at the table. One person pays; everyone else taps what they had and pays them back from their own wallet, on Stellar. Or play for it: a round of hidden coins, sealed and judged by a Soroban contract, decides who pays for everyone.
 
-**Live:** https://quits.aircade.xyz, on Stellar mainnet (the round runs on testnet during HackMeridian)
+**Live:** https://quits.aircade.xyz, on Stellar mainnet, the round included
 
 **HackMeridian 2026, Genesis path (Stellar Unlocked + Stellar Composed).** Quits arrived at the hackathon as an MVP (everything up to the `pre-hackmeridian` branch); the round, *Who pays?*, was built during the event. [What was built when](#built-when).
 
@@ -65,11 +65,11 @@ Playing is optional (whoever stays out pays their own part), nothing is wagered 
   - phone: WalletConnect (Reown) for Freighter, LOBSTR and Scopuly;
   - anything else (Decaf, an exchange…): send it yourself with address, amount and memo, with a SEP-7 QR on desktop.
 - **The round** is judged by a Soroban contract, [`contracts/whopays`](contracts/README.md):
-  - testnet: `CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2)), 16 KB of Wasm, `soroban-sdk` 29;
+  - mainnet: `CAYHWHSNRG6R436BHAHI4Y6IXVPWS3ZTEUBSGZ7ORHSYAK2ORE5UH5UA` ([stellar.expert](https://stellar.expert/explorer/public/contract/CAYHWHSNRG6R436BHAHI4Y6IXVPWS3ZTEUBSGZ7ORHSYAK2ORE5UH5UA)), the one the live app uses; testnet: `CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2)); the same 16 KB of Wasm (`b06ead9f…`), `soroban-sdk` 29;
   - `create`, `commit` / `commit_many`, `close`, `reveal` / `reveal_many`, `settle`, `game`, `commitment`;
   - players are Ed25519 public keys made in the browser (no Stellar account, no wallet); a seal is a 64-byte signature checked with the host's `ed25519_verify`; a move is `SHA-256("QUITS/c" ‖ game ‖ player ‖ coins ‖ guess ‖ salt)`, checked on reveal with the host's `sha256`;
   - one funded account (the contract's admin) relays everybody's moves and pays the fees, so a player never signs a Stellar transaction; anyone could relay a move, since each one carries its own signature;
-  - a round lives in temporary storage for an hour; its transactions and events are the record.
+  - a round lives in temporary storage for an hour; its transactions and events are the record. On mainnet a three-player round is five transactions and 0.007 XLM in fees.
 - **Next:** pay-ins from Base and Solana through Circle CCTP, landing as USDC in the host's Stellar account.
 
 ## Architecture
@@ -149,12 +149,13 @@ They use Playwright (`npm i -D playwright && npx playwright install chromium`) a
 - `test/wc-smoke.mjs`: the phone wallet picker (WalletConnect) opens with Stellar wallets only.
 - `test/game-ui.mjs`: a round in three real browsers, from the host's proposal to the loser paying, against the contract on testnet.
 - `test/game-flow.mjs`: the round through the API: forged seals and wrong openings refused, the verdict mirrored, the parts moved to the loser.
-- `contracts/whopays`: `cargo test` runs 10 tests of the contract's rules; `contracts/scripts/whopays.mjs` plays rounds on testnet (`round`, `silent`, `forged`).
+- `contracts/whopays`: `cargo test` runs 10 tests of the contract's rules; `contracts/scripts/whopays.mjs` plays rounds on testnet or, with `NETWORK=public`, on mainnet (`round`, `silent`, `forged`).
 
 ## On-chain proof
 
 - A payment made through Quits on testnet: [`6e9be7ac…09cc0`](https://stellar.expert/explorer/testnet/tx/6e9be7ac56fd4bbff9bbe362b54acb701c8edf3cc1505cfd8df225f4a6409cc0) (70.02 USDC, memo `QUITS CANTFYY P2`).
-- A round of *Who pays?* on testnet, three players, 25 Oct 2026: [create](https://stellar.expert/explorer/testnet/tx/afdb538dfac6c4c20c7a19a2ce3f71c4ee71f1d1abb6558a4d06871b6fa44b64) → [one seal](https://stellar.expert/explorer/testnet/tx/33f5fe22ccc05e069539a34538e52c38ce246fa0c0250a629d7e68d5472eb96a) → [two seals in one transaction](https://stellar.expert/explorer/testnet/tx/f0edb76207e038fa13c311380b9ddcffaed53c007326fc4bcdad4757c54dcd25) → [one opening](https://stellar.expert/explorer/testnet/tx/634fcc4a3afcc29be713c816cfcb6684e722704ed86d7e123ba398d1da0b8ced) → [the last two openings settle it](https://stellar.expert/explorer/testnet/tx/64d5e589f3a0fc00d38c75353ddc3b2dd2021b799f8be843c4210bb5385ffd5c): P3 pays, 4 coins on the table. A round where one player never opens, [settled by timeout](https://stellar.expert/explorer/testnet/tx/44a71c1874f427e351cb70a31c38b75c4b3d4387e50aba9406df5bc3f831c3c1). All in [`contracts/deployments/testnet.json`](contracts/deployments/testnet.json).
+- A round of *Who pays?* on **mainnet**, three players, 25 Oct 2026, 0.007 XLM in fees: [create](https://stellar.expert/explorer/public/tx/e24977cc0a8066f4231077e7c8dd4c1844b9caed05c3e4b75af97698325ae317) → [one seal](https://stellar.expert/explorer/public/tx/dfdd48140d7a55b85c04e4716d838c5e7ed55a3e79aae973408ede995c573ea4) → [two seals in one transaction](https://stellar.expert/explorer/public/tx/6d2996e59aba5ba83b42c6a186966e97567e90d122e223381b2da91e5ff24355) → [one opening](https://stellar.expert/explorer/public/tx/b1647a27123d18a35c99258b77f7a16b44a63be320297fabb24267ef4c8a9903) → [the last two openings settle it](https://stellar.expert/explorer/public/tx/857d614bc38fdab212a132ce137139515e0d534ebd0c67aaf9f7e511ee19c93b): P1 pays, 2 coins on the table, furthest guess, decided by lot. The contract's [upload](https://stellar.expert/explorer/public/tx/96927bb5b76a4e068d1bef90340be39b84c077f28308ecd443ddff9be00d6fb0) and [creation](https://stellar.expert/explorer/public/tx/d5080f92548f09d196f7bdc86d32ae22e791086b22b3536c14adb2e01d83c2a1). All in [`contracts/deployments/public.json`](contracts/deployments/public.json).
+- The same round on testnet, three players, 25 Oct 2026: [create](https://stellar.expert/explorer/testnet/tx/afdb538dfac6c4c20c7a19a2ce3f71c4ee71f1d1abb6558a4d06871b6fa44b64) → [one seal](https://stellar.expert/explorer/testnet/tx/33f5fe22ccc05e069539a34538e52c38ce246fa0c0250a629d7e68d5472eb96a) → [two seals in one transaction](https://stellar.expert/explorer/testnet/tx/f0edb76207e038fa13c311380b9ddcffaed53c007326fc4bcdad4757c54dcd25) → [one opening](https://stellar.expert/explorer/testnet/tx/634fcc4a3afcc29be713c816cfcb6684e722704ed86d7e123ba398d1da0b8ced) → [the last two openings settle it](https://stellar.expert/explorer/testnet/tx/64d5e589f3a0fc00d38c75353ddc3b2dd2021b799f8be843c4210bb5385ffd5c): P3 pays, 4 coins on the table. A round where one player never opens, [settled by timeout](https://stellar.expert/explorer/testnet/tx/44a71c1874f427e351cb70a31c38b75c4b3d4387e50aba9406df5bc3f831c3c1). All in [`contracts/deployments/testnet.json`](contracts/deployments/testnet.json).
 
 ## Built with AI
 
@@ -167,6 +168,6 @@ Quits is built by a solo founder, Carlos de la Figuera. The code is written by C
 | | |
 |---|---|
 | **Before HackMeridian** (the `pre-hackmeridian` branch, last commit `5efdcad`, 21 Oct) | The whole bill-splitting app: tables, QR, AI-read receipts, live claiming, wallet and memo payments on mainnet, Google accounts, nights with photos. |
-| **During HackMeridian** (25–26 Oct, every commit after `5efdcad` on `main`) | *Who pays?*: the `whopays` contract and its tests, its testnet deployment, the relay (ChainDO, chain.js, game.js), the round inside the table and its settlement, the phone screens, the two tests of the round, this README. |
+| **During HackMeridian** (25–26 Oct, every commit after `5efdcad` on `main`) | *Who pays?*: the `whopays` contract and its tests, its deployments on testnet and mainnet, the relay (ChainDO, chain.js, game.js), the round inside the table and its settlement, the phone screens, the two tests of the round, this README. |
 
 Everything was built in the open on GitHub; the commit log is the timeline.
