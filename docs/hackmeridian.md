@@ -24,6 +24,8 @@ Genesis path · tracks: Stellar Unlocked (a game with real stakes judged by a So
 
 **Business model / sustainability.** Quits is a product of a small AI-native agency: it is sold as a service to event hosts and communities (a table and its rounds for a meetup, a side event, a conference dinner), with the app itself free for a table of friends. Running costs are tiny: $0.0007 per receipt read, Cloudflare's free tier, cents of XLM per round.
 
+**What Stellar gets: the bill as an onboarding moment.** Splitwise and Tricount record debts; Quits settles them at the table, while everyone is still there and the receipt is in front of them. That moment, when each guest chooses how to pay the host back, is where a wallet's advantages can be made tangible: a payment that arrives in seconds with no fee, and whatever an issuer, an anchor or an ecosystem programme wants to attach to paying in USDC on Stellar (a sponsored cashback, a fee-free month, a perk). One crypto-native host at a table of six is enough: the other five see the difference on their own bill. Any incentive has to be tied to a real receipt read at a real table with several people, so it cannot be farmed by two wallets paying each other; that is exactly the data Quits has and a plain wallet does not. We are not claiming the incentive design; we are claiming the moment.
+
 **Next steps.** Pay-ins from Base and Solana through Circle CCTP; shorter reveal windows as Stellar's ledgers get faster; a verifier of the verdict in the night page so anyone can re-check a round from its transactions.
 
 **Prior work (declared).** Everything up to the `pre-hackmeridian` branch (last commit `5efdcad`, 21 Oct) was built before the event: the bill-splitting app on mainnet. Everything after it on `main` was built on 25–26 October.
@@ -52,4 +54,10 @@ Two phones side by side, the table on the left (Carlos), a guest on the right (A
 5. **Why a contract.** Sealed moves: no waiting, no changing, no backing out (silence loses). Verdict with a transaction anyone can check. Holds no money. Players need no wallet to play.
 6. **On Stellar.** `whopays` on mainnet: ed25519_verify + sha256 host functions, batched seals and openings, temporary storage, 0.007 XLM per round. Payments: USDC, memo as receipt, Horizon. (cost table)
 7. **Built at HackMeridian.** Contract + 10 tests, on testnet and mainnet; relay; round in the table; screens; two end-to-end tests. Before: the app. (commit timeline)
-8. **Next, and who it's for.** CCTP pay-ins from Base/Solana; a verifier of the verdict; hosts and communities as the customers of a small AI-native agency. Carlos de la Figuera · built with Claude.
+8. **Next, and who it's for.** CCTP pay-ins from Base/Solana; a verifier of the verdict; hosts and communities as the customers of a small AI-native agency; what Stellar gets: the bill as an onboarding moment. Carlos de la Figuera · built with Claude.
+
+## Later (not for the submission)
+
+- Tap a person in the night page or in Friends to open their profile.
+- Invite code delivered on Google sign-in.
+- CCTP pay-ins with settlement on Stellar; Confidential Tokens.
