@@ -6,8 +6,9 @@
 //   node scripts/whopays.mjs silent            a round in which one player never opens: settled by timeout
 //   node scripts/whopays.mjs forged            a sealed move with a wrong signature is refused
 //
-// The relaying account's key is in contracts/.keys/testnet.json (git-ignored, funded by friendbot).
-// Results are logged in contracts/deployments/testnet.json.
+// The relaying account's key is in contracts/.keys/<network>.json (git-ignored; on testnet it is made and funded by
+// friendbot, on mainnet (NETWORK=public) you fund the address it prints). Results are logged in
+// contracts/deployments/<network>.json.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,24 +18,26 @@ import { commitmentOf, sealMessage, randomBytes, hex, judge } from '../../src/sh
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WASM = join(ROOT, 'target/wasm32v1-none/release/whopays.optimized.wasm');
-const keysDir = join(ROOT, '.keys'), logPath = join(ROOT, 'deployments/testnet.json');
-const log = existsSync(logPath) ? JSON.parse(readFileSync(logPath, 'utf8')) : { network: 'testnet', events: [] };
+const NET = process.env.NETWORK === 'public' ? 'public' : 'testnet';
+const keysDir = join(ROOT, '.keys'), logPath = join(ROOT, `deployments/${NET}.json`);
+const log = existsSync(logPath) ? JSON.parse(readFileSync(logPath, 'utf8')) : { network: NET, events: [] };
 const save = () => { mkdirSync(dirname(logPath), { recursive: true }); writeFileSync(logPath, JSON.stringify(log, null, 2) + '\n'); };
 const record = e => { log.events.push({ at: new Date().toISOString(), ...e }); save(); };
 
 async function keypair() {
   mkdirSync(keysDir, { recursive: true });
-  const p = join(keysDir, 'testnet.json');
+  const p = join(keysDir, `${NET}.json`);
   if (existsSync(p)) return Keypair.fromSecret(JSON.parse(readFileSync(p, 'utf8')).secret);
   const kp = Keypair.random();
   writeFileSync(p, JSON.stringify({ public: kp.publicKey(), secret: kp.secret() }, null, 2), { mode: 0o600 });
-  await fundOnTestnet(kp.publicKey());
+  if (NET === 'testnet') await fundOnTestnet(kp.publicKey());
+  else { console.log(`Fund ${kp.publicKey()} with a few XLM on mainnet (the upload is about 30 XLM with rent), then run again.`); process.exit(2); }
   return kp;
 }
 
 const [cmd, arg] = process.argv.slice(2);
 const kp = await keypair();
-const chain = new Chain({ network: 'testnet', secret: kp.secret(), contractId: log.contract });
+const chain = new Chain({ network: NET, secret: kp.secret(), contractId: log.contract });
 const tx = r => `${chain.explorer}/tx/${r.hash}`;
 
 if (cmd === 'deploy') {
