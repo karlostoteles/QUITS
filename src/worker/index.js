@@ -60,6 +60,19 @@ async function inviteTry(env, req, code) {
   return { ok: false };
 }
 
+// The name of the app bundle this deployment serves (main-<hash>.js). A page compares it with its own
+// to notice a deploy; this comes from the Worker, never from an edge cache of the HTML.
+let BUILD = null;
+async function build(env, url) {
+  if (BUILD) return BUILD;
+  try {
+    const page = await env.ASSETS.fetch(new Request(new URL('/', url)));
+    const m = /\/assets\/(main-[^/"?#]+\.js)/.exec(await page.text());
+    if (m) BUILD = m[1];
+  } catch (e) { /* unknown build: the page then never thinks it is old */ }
+  return BUILD || '';
+}
+
 // Links to a table or a night get a preview with the night's name and cover photo (WhatsApp, Telegram, X).
 async function pageWithPreview(req, env, kind, code) {
   const url = new URL(req.url);
@@ -97,7 +110,7 @@ export default {
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
       if (p === '/api/health') {
-        return json({ ok: true, network: env.NETWORK || 'testnet', wc: env.WC_PROJECT_ID || '', invite: invites(env).length > 0, accounts: accountsOn(env), google: env.GOOGLE_CLIENT_ID || '', authTest: env.AUTH_TEST === '1', game: chainInfo(env) });
+        return json({ ok: true, network: env.NETWORK || 'testnet', wc: env.WC_PROJECT_ID || '', invite: invites(env).length > 0, accounts: accountsOn(env), google: env.GOOGLE_CLIENT_ID || '', authTest: env.AUTH_TEST === '1', game: chainInfo(env), build: await build(env, url) });
       }
       if (p === '/api/rate') return json({ eurUsd: await eurUsd() }, 200, { 'cache-control': 'public, max-age=300' });
 

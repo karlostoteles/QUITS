@@ -13,14 +13,16 @@ const html = await (await fetch(BASE + '/')).text();
 const main = /\/assets\/(main-[^/"]+\.js)/.exec(html)[1];
 console.log('screen', await page.getAttribute('[data-screen]', 'data-screen'), 'build', main);
 
-// 1. a deploy happens: "/" now names another main bundle
+// 1. a deploy happens: the Worker now reports another main bundle
 let reloaded = false;
-await page.route(BASE + '/', route => route.fulfill({ status: 200, contentType: 'text/html', body: html.replace(main, 'main-NEWBUILD.js') }));
+const health = await (await fetch(BASE + '/api/health')).json();
+if (health.build !== main) { console.log('FAIL: /api/health reports', health.build, 'but the page names', main); process.exit(1); }
+await page.route(BASE + '/api/health', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...health, build: 'main-NEWBUILD.js' }) }));
 page.on('framenavigated', f => { if (f === page.mainFrame()) reloaded = true; });
 await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 await page.waitForTimeout(1500);
 console.log(reloaded ? 'PASS: the page reloaded itself on the home screen' : 'FAIL: no reload');
-await page.unroute(BASE + '/');
+await page.unroute(BASE + '/api/health');
 
 // 2. the wallet chunk is gone while a photo is on the form: a message, no reload
 await page.goto(BASE + '/');

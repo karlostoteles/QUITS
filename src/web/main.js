@@ -166,9 +166,8 @@ async function checkBuild() {
   if (!BUILD || document.visibilityState !== 'visible' || Date.now() - buildCheckedAt < 30000) return;
   buildCheckedAt = Date.now();
   try {
-    const html = await (await fetch('/', { cache: 'no-store', headers: { accept: 'text/html' } })).text();
-    const m = /\/assets\/(main-[^/"?#]+\.js)/.exec(html);
-    if (m && m[1] !== BUILD) { stale = true; reloadIfIdle(); }
+    const j = await (await fetch('/api/health', { cache: 'no-store' })).json(); // the Worker's own answer, never an edge-cached page
+    if (j.build && j.build !== BUILD) { stale = true; reloadIfIdle(); }
   } catch (e) { /* offline: next time */ }
 }
 document.addEventListener('visibilitychange', checkBuild);
