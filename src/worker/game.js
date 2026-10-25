@@ -17,6 +17,7 @@ const fail = (msg, code = 409) => { throw Object.assign(new Error(msg), { code }
 
 export function propose(s, chainInfo) {
   if (gameActive(s.game)) fail('A round is already on');
+  if (s.game && s.game.status === 'done') fail('This table already played its round');
   s.game = {
     status: 'invite', id: hex(randomBytes(32)), network: chainInfo.network, contract: chainInfo.contract, explorer: chainInfo.explorer,
     maxCoins: MAX_COINS, invited: [...s.order], answers: {}, keys: {}, players: [], active: [], sealed: {}, opened: {},

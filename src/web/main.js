@@ -1037,9 +1037,9 @@ function refreshLive(ctx, animate = true) {
   } else lb.hidden = true;
   if (acts) {
     const notReady = S.order.filter(id => !S.ready.includes(id)).length;
-    const canPlay = S.phase === 'claiming' && HEALTH.game && !(S.game && ['invite', 'sealing', 'opening'].includes(S.game.status)) && S.order.length >= 2;
-    const played = S.game && S.game.status === 'done' && S.game.outcome;
-    acts.innerHTML = (canPlay ? `<button class="btn primary" type="button" data-act="round">${ic('fist', 20)}${played ? 'Play again for the bill' : 'Who pays? Play a round'}</button>` : '')
+    // One round per table: it can only be proposed while claiming, before any round has been settled.
+    const canPlay = S.phase === 'claiming' && HEALTH.game && !(S.game && S.game.status !== 'cancelled') && S.order.length >= 2;
+    acts.innerHTML = (canPlay ? `<button class="btn primary" type="button" data-act="round">${ic('fist', 20)}Who pays? Play a round</button>` : '')
       + (S.phase === 'claiming' ? `<button class="btn ghost" type="button" data-act="close">${notReady ? `Close the receipt now (${notReady} still choosing)` : 'Close the receipt'}</button>` : S.phase === 'settled' ? `<button class="btn primary" type="button" data-act="night">See the night${ic('chev')}</button>` : '');
   }
 }
