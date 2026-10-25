@@ -1531,7 +1531,7 @@ function roundView() {
       <p class="gfine">${ic('lock', 14)}Moves are sealed on Stellar before anyone opens theirs, so nobody can wait, cheat or back out. The contract only decides who pays; the money still goes wallet to wallet.</p>
       <div class="ganswers">${S.order.map(id => `<span class="gans ${g.answers[id] === true ? 'yes' : g.answers[id] === false ? 'no' : ''}">${av(id, 26)}<small>${g.answers[id] === true ? 'in' : g.answers[id] === false ? 'out' : '…'}</small></span>`).join('')}</div>
       ${mine === undefined ? `<button class="btn primary" type="button" data-g="in">${ic('fist', 20)}I’m in</button><button class="btn ghost" type="button" data-g="out">I’ll just pay my part</button>`
-        : `<p class="gstate">${mine ? 'You’re in.' : 'You’re out: you pay your own part.'} <button type="button" class="link" data-g="${mine ? 'out' : 'in'}">${mine ? 'Change my mind' : 'Join after all'}</button></p>`}
+        : `<p class="gstate">${mine ? `You’re in.${host ? '' : ` Waiting for ${esc(P(S.host).name)} to start.`}` : 'You’re out: you pay your own part.'} <button type="button" class="link" data-g="${mine ? 'out' : 'in'}">${mine ? 'Change my mind' : 'Join after all'}</button></p>${host ? '' : `<button class="btn ghost sm" type="button" data-g="hide">Keep choosing meanwhile</button>`}`}
       ${host ? `<button class="btn primary" type="button" data-g="start" ${yes.length < 2 ? 'disabled' : ''}>${yes.length < 2 ? 'Waiting for two to be in' : `Start with ${yes.length}${ic('chev')}`}</button><button class="btn ghost sm" type="button" data-g="off">Call it off</button>` : ''}` };
   }
   if (g.status === 'sealing') {
@@ -1602,7 +1602,7 @@ async function gameAct(what, b) {
   const g = S.game, m = gmem() || {};
   try {
     if (what === 'in') { const k = myRoundKey(); busy(b, true); await act('gameAnswer', { yes: true, pk: k.pk }); }
-    else if (what === 'out') { busy(b, true); await act('gameAnswer', { yes: false }); }
+    else if (what === 'out') { busy(b, true); await act('gameAnswer', { yes: false }); if (!isHost()) { gsave({ ...gmem(), dismissed: 'invite' }); gameLayer(); } }
     else if (what === 'start') { busy(b, true, 'Starting on Stellar'); await act('gameStart'); }
     else if (what === 'off') { busy(b, true); await act('gameCancel'); }
     else if (what === 'hide') { gsave({ ...m, dismissed: g.status }); gameLayer(); }

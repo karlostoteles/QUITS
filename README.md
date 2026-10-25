@@ -1,8 +1,10 @@
 # Quits
 
-Split the bill at the table. One person pays; everyone else taps what they had and pays them back from their own wallet, on Stellar.
+Split the bill at the table. One person pays; everyone else taps what they had and pays them back from their own wallet, on Stellar. Or play for it: a round of hidden coins, sealed and judged by a Soroban contract, decides who pays for everyone.
 
-**Live:** https://quits.aircade.xyz, on Stellar mainnet
+**Live:** https://quits.aircade.xyz, on Stellar mainnet (the round runs on testnet during HackMeridian)
+
+**HackMeridian 2026, Genesis path (Stellar Unlocked + Stellar Composed).** Quits arrived at the hackathon as an MVP (everything up to the `pre-hackmeridian` branch); the round, *Who pays?*, was built during the event. [What was built when](#built-when).
 
 ## The problem
 
@@ -20,6 +22,23 @@ At a group dinner one person pays, and then the hard part starts: working out wh
 4. Everyone taps what they had on a shared, live receipt. Shared plates split themselves, what nobody claimed is split by everyone, and the tip goes on top.
 5. Each guest pays the host back in USDC from their own Stellar wallet, or marks cash for the host to confirm.
 6. Quits. The night stays with photos, who was there and what each paid. Signing in with Google keeps it in your profile on any phone.
+
+## Who pays? The round (built at HackMeridian)
+
+Before paying back, the host can propose a round for the bill. It is *los chinos*, the Spanish bar game, in one simultaneous round:
+
+1. Everyone who is in hides 0–3 coins in a fist and calls the total on the table.
+2. Each move is **sealed**: the phone hashes it with a random salt and signs the hash with a key that only that phone has. The signed seal goes to the `whopays` contract on Stellar. Nobody, not even Quits, can see a move before everyone has sealed.
+3. Once every seal is on chain, phones **open** their moves and the contract checks each one against its seal. The player furthest from the real total pays the parts of everyone who played; ties are drawn from the salts, which were all fixed before anything was opened. Whoever does not open in time loses: that is what keeps the round honest once the others' moves are on the table.
+4. Quits reads the verdict and moves the players' parts to the loser. The loser pays the host as usual; the others are off the hook. The round, with its moves and the settling transaction, stays with the night.
+
+Playing is optional (whoever stays out pays their own part), nothing is wagered and the contract never holds funds: it only decides who pays a bill the group already owes. The money still goes wallet to wallet.
+
+| | | | |
+|:-:|:-:|:-:|:-:|
+| <img src="docs/screens/r1-propose.png" width="200" alt="Proposing a round"><br>**Who pays?**<br><sub>The host proposes; everyone answers</sub> | <img src="docs/screens/r2-move.png" width="200" alt="Your move"><br>**Your move**<br><sub>Coins in your fist, your call on the total</sub> | <img src="docs/screens/r3-opening.png" width="200" alt="Opening the moves"><br>**Opening**<br><sub>Seals and moves land on Stellar</sub> | <img src="docs/screens/r4-result.png" width="200" alt="The result"><br>**The verdict**<br><sub>Decided by the contract, with the transaction</sub> |
+
+**Why on chain:** with sealed moves a player cannot wait to see what the others played, cannot change their move afterwards, and cannot quietly back out when they see they have lost (silence loses). A server could do the first two only by being trusted; a contract everyone can read does all three without trust, and the verdict comes with a transaction anyone can check. A round costs about 0.1 XLM in fees in total.
 
 ### The flow, screen by screen
 
@@ -41,7 +60,13 @@ At a group dinner one person pays, and then the hard part starts: working out wh
   - desktop: [Stellar Wallets Kit](https://github.com/Creit-Tech/Stellar-Wallets-Kit) (Freighter, xBull, LOBSTR, Albedo, Rabet, Hana);
   - phone: WalletConnect (Reown) for Freighter, LOBSTR and Scopuly;
   - anything else (Decaf, an exchange…): send it yourself with address, amount and memo, with a SEP-7 QR on desktop.
-- **Planned at HackMeridian:** pay-ins from Base and Solana through Circle CCTP, landing as USDC in the host's Stellar account.
+- **The round** is judged by a Soroban contract, [`contracts/whopays`](contracts/README.md):
+  - testnet: `CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2` ([stellar.expert](https://stellar.expert/explorer/testnet/contract/CAQOQKI4GOX36MPWTYK27TNJB32I5VRLEHGADOUHOFUBMISUWIUHH5J2)), 16 KB of Wasm, `soroban-sdk` 29;
+  - `create`, `commit` / `commit_many`, `close`, `reveal` / `reveal_many`, `settle`, `game`, `commitment`;
+  - players are Ed25519 public keys made in the browser (no Stellar account, no wallet); a seal is a 64-byte signature checked with the host's `ed25519_verify`; a move is `SHA-256("QUITS/c" ‖ game ‖ player ‖ coins ‖ guess ‖ salt)`, checked on reveal with the host's `sha256`;
+  - one funded account (the contract's admin) relays everybody's moves and pays the fees, so a player never signs a Stellar transaction; anyone could relay a move, since each one carries its own signature;
+  - a round lives in temporary storage for an hour; its transactions and events are the record.
+- **Next:** pay-ins from Base and Solana through Circle CCTP, landing as USDC in the host's Stellar account.
 
 ## Architecture
 
@@ -51,9 +76,15 @@ browser (vanilla JS + GSAP, esbuild)          Cloudflare Worker
   src/web/wallet.js (loaded only to pay)         ├─ TableDO   one Durable Object per table: live state,
                                                  │            seats, photos (SQLite), payment watcher
   src/shared/logic.js  ◀── same split logic ──▶  ├─ UserDO    one per Google account: profile, nights
-                                                 ├─ LimiterDO daily caps (AI calls, sign-ins, tries)
+  src/shared/game.js   ◀── same hashing ──────▶  ├─ LimiterDO daily caps (AI calls, sign-ins, tries)
+                                                 ├─ ChainDO   one for the app: relays the round's moves
+                                                 │            to Stellar, one transaction at a time
+                                                 ├─ game.js   the round inside a table: invite, seals,
+                                                 │            openings, verdict (checks signatures/hashes)
+                                                 ├─ chain.js  builds and sends the contract calls (RPC)
                                                  ├─ ai.js     Claude Haiku reads receipts and venue signs
                                                  └─ stellar.js Horizon: verify payments, trustlines, rates
+contracts/whopays (Rust, soroban-sdk 29)         the contract that judges the round; tests, deploy script
 ```
 
 - Live tables: WebSockets with Durable Object hibernation. What one person taps, everyone sees at once.
@@ -81,6 +112,8 @@ npm run dev                      # builds the app and serves it on http://localh
 | `GOOGLE_CLIENT_ID` | `wrangler.jsonc` | Google sign-in (public). Without it the app runs without accounts |
 | `WC_PROJECT_ID` | `wrangler.jsonc` | Reown / WalletConnect project (public) |
 | `CLAUDE_MODEL`, `AI_DAILY_MAX` | `wrangler.jsonc` | Model and daily cap on AI calls |
+| `GAME_SECRET` | secret | Stellar secret key of the account that relays the round's moves (the contract's admin). Without it the round is off |
+| `GAME_CONTRACT`, `GAME_NETWORK` | `wrangler.jsonc` | The `whopays` contract and its network (`testnet` or `public`) |
 
 ## Deploy
 
@@ -88,15 +121,19 @@ npm run dev                      # builds the app and serves it on http://localh
 npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put INVITE_CODES
+npx wrangler secret put GAME_SECRET
 npm run deploy
 ```
+
+The contract is built and deployed from `contracts/` (see [its README](contracts/README.md)).
 
 ## Demo
 
 1. Open https://quits.aircade.xyz on your phone and continue with Google. Opening a table needs an invite code; judges get one from the team.
 2. Snap the place, then the receipt.
 3. Scan the table's QR with a second phone and join (with Google or without an account).
-4. Tap what you had, then pay from a Stellar wallet, or send it by hand with the memo, or mark cash.
+4. Tap what you had. The host taps **Who pays? Play a round**; everyone who is in picks their coins and their call and seals the move.
+5. When the moves open, the contract names who pays. That person pays from a Stellar wallet, or sends it by hand with the memo, or marks cash; the others are off the hook.
 
 ## Tests
 
@@ -106,15 +143,26 @@ They use Playwright (`npm i -D playwright && npx playwright install chromium`) a
 - `test/api-flow.mjs`: the same through the API, with both payment paths.
 - `test/auth-unit.mjs`: Google token checks (valid, wrong audience, expired, forged) and sessions.
 - `test/wc-smoke.mjs`: the phone wallet picker (WalletConnect) opens with Stellar wallets only.
+- `test/game-ui.mjs`: a round in three real browsers, from the host's proposal to the loser paying, against the contract on testnet.
+- `test/game-flow.mjs`: the round through the API: forged seals and wrong openings refused, the verdict mirrored, the parts moved to the loser.
+- `contracts/whopays`: `cargo test` runs 10 tests of the contract's rules; `contracts/scripts/whopays.mjs` plays rounds on testnet (`round`, `silent`, `forged`).
 
 ## On-chain proof
 
-A payment made through Quits on testnet: [`6e9be7ac…09cc0`](https://stellar.expert/explorer/testnet/tx/6e9be7ac56fd4bbff9bbe362b54acb701c8edf3cc1505cfd8df225f4a6409cc0) (70.02 USDC, memo `QUITS CANTFYY P2`).
+- A payment made through Quits on testnet: [`6e9be7ac…09cc0`](https://stellar.expert/explorer/testnet/tx/6e9be7ac56fd4bbff9bbe362b54acb701c8edf3cc1505cfd8df225f4a6409cc0) (70.02 USDC, memo `QUITS CANTFYY P2`).
+- A round of *Who pays?* on testnet, three players, 25 Oct 2026: [create](https://stellar.expert/explorer/testnet/tx/afdb538dfac6c4c20c7a19a2ce3f71c4ee71f1d1abb6558a4d06871b6fa44b64) → [one seal](https://stellar.expert/explorer/testnet/tx/33f5fe22ccc05e069539a34538e52c38ce246fa0c0250a629d7e68d5472eb96a) → [two seals in one transaction](https://stellar.expert/explorer/testnet/tx/f0edb76207e038fa13c311380b9ddcffaed53c007326fc4bcdad4757c54dcd25) → [one opening](https://stellar.expert/explorer/testnet/tx/634fcc4a3afcc29be713c816cfcb6684e722704ed86d7e123ba398d1da0b8ced) → [the last two openings settle it](https://stellar.expert/explorer/testnet/tx/64d5e589f3a0fc00d38c75353ddc3b2dd2021b799f8be843c4210bb5385ffd5c): P3 pays, 4 coins on the table. A round where one player never opens, [settled by timeout](https://stellar.expert/explorer/testnet/tx/44a71c1874f427e351cb70a31c38b75c4b3d4387e50aba9406df5bc3f831c3c1). All in [`contracts/deployments/testnet.json`](contracts/deployments/testnet.json).
 
 ## Built with AI
 
 Quits is built by a solo founder, Carlos de la Figuera. The code is written by Claude (Anthropic), as declared in the HackMeridian submission.
 
-## Prior work
+## Built when
 
-Everything here before the `pre-hackmeridian` tag was built before HackMeridian 2026. Work done during the event (CCTP pay-ins) comes after that tag.
+<a name="built-when"></a>
+
+| | |
+|---|---|
+| **Before HackMeridian** (the `pre-hackmeridian` branch, last commit `5efdcad`, 21 Oct) | The whole bill-splitting app: tables, QR, AI-read receipts, live claiming, wallet and memo payments on mainnet, Google accounts, nights with photos. |
+| **During HackMeridian** (25–26 Oct, every commit after `5efdcad` on `main`) | *Who pays?*: the `whopays` contract and its tests, its testnet deployment, the relay (ChainDO, chain.js, game.js), the round inside the table and its settlement, the phone screens, the two tests of the round, this README. |
+
+Everything was built in the open on GitHub; the commit log is the timeline.
