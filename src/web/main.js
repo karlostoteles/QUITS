@@ -1521,6 +1521,20 @@ SCREENS.code = {
   },
 };
 
+// A page for finding the right way to open a wallet app with a WalletConnect link (not linked from anywhere).
+SCREENS.wctest = {
+  render() {
+    return h(`<section>
+      <header class="scr-head"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${ic('back', 22)}</button><span class="head-t">Wallet link test</span></header>
+      <div class="scr-body" style="gap:14px"><p class="sub">Which link opens LOBSTR with the connection request? ${HEALTH.wc ? '' : 'WalletConnect is not set up here.'}</p><div class="wct"></div></div>
+      <footer class="scr-foot"><button class="btn primary" type="button" data-act="start" ${HEALTH.wc ? '' : 'disabled'}>Make a connection link</button></footer>
+    </section>`);
+  },
+  act: {
+    back() { nav('/', { dir: 'back' }); },
+    async start(ctx, b) { busy(b, true, 'Starting'); try { const w = await lazy(() => import('./wallet-test.js')); b.hidden = true; await w.run(ctx.el, HEALTH, HEALTH.network); } catch (e) { UI.toast(`<div><b>Couldn’t start</b><small>${esc(e.message || e)}</small></div>`); busy(b, false); } },
+  },
+};
 SCREENS.notfound = {
   render(ctx) {
     return h(`<section><header class="scr-head"><span class="wordmark"><span class="wm-hl"></span><span class="wm-t">quits</span></span></header><div class="scr-body"><div class="empty"><b>${esc(ctx.opts.title || 'No table with this code')}</b>${esc(ctx.opts.text || 'Check the link or scan the QR again.')}</div></div><footer class="scr-foot"><button class="btn primary" type="button" data-act="home">Go to Quits</button></footer></section>`);
@@ -1779,6 +1793,7 @@ function route() {
   const p = location.pathname;
   let m;
   if (p === '/privacy') return UI.go('privacy');
+  if (p === '/wc-test') return UI.go('wctest');
   if ((m = /^\/(?:t|n)\/([A-Za-z0-9]{4,10})\/?$/.exec(p))) {
     if (p.startsWith('/n/')) { history.replaceState({}, '', `/t/${m[1].toUpperCase()}?night`); }
     return openTable(m[1].toUpperCase());

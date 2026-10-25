@@ -191,3 +191,8 @@ a.txlink .ic{display:inline-block;vertical-align:-2px;margin-left:3px}
 .sheet-foot.decide .yp b{font-size:22px}
 .sheet-foot.decide .btn.primary{width:100%}
 .sheet-foot.decide .foot-close{width:100%;height:44px;font-size:14.5px}
+/* /wc-test */
+.wct-links{display:flex;flex-direction:column;gap:8px}
+.wct-links .btn{justify-content:flex-start;font-size:14px;height:46px}
+.wct-qr{width:220px;margin:0 auto;background:#fff;padding:8px;border-radius:12px}
+.wct-qr svg{display:block;width:100%;height:auto}
