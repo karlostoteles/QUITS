@@ -1501,7 +1501,7 @@ const roundLoser = () => (S.game && S.game.outcome ? S.game.outcome.loser : null
 function roundExtra(me) { const p = gamePool(S); if (!p || roundLoser() !== me) return 0; const s = shares(S); return s.total[me] - ((s.items[me] || 0) + (s.leftShare[me] || 0) + (s.tip[me] || 0)); }
 function roundNames(me) { const p = (gamePool(S) || []).filter(id => id !== me).map(id => P(id).name); return p.length > 2 ? `${p.slice(0, 2).join(', ')} and ${p.length - 2} more` : p.join(' and '); }
 const minsLeft = t => { const m = Math.max(0, Math.round((t - Date.now()) / 60000)); return m <= 0 ? 'Less than a minute' : m === 1 ? 'About a minute' : `About ${m} min`; };
-const coinsDots = n = `<span class="coins-d" aria-label="${n} coins">${Array.from({ length: 3 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
+const coinsDots = n => `<span class="coins-d" aria-label="${n} coins">${Array.from({ length: 3 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
 const txA = (tx, label = 'See it on Stellar') => (tx ? `<a class="txlink" href="${esc(S.game.explorer)}/tx/${esc(tx)}" target="_blank" rel="noopener">${label} ${ic('ext', 12)}</a>${S.game.network === 'testnet' ? ' <span class="net">testnet</span>' : ''}` : '');
 
 function roundOutcomeText(g, me) {
