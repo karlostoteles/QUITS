@@ -6,8 +6,9 @@ const keys = JSON.parse(fs.readFileSync(new URL('./.keys.json', import.meta.url)
 const hz = new Horizon.Server('https://horizon-testnet.stellar.org');
 const ASSET = { EURC: new Asset('EURC', 'GB3Q6QDZYTHWT7E5PVS3W7FUT5GVAFC5KSZFFLPU25GO7VTC3NM2ZTVO'), USDC: new Asset('USDC', 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5') };
 const img = 'data:image/png;base64,' + fs.readFileSync(new URL('./tiny.png', import.meta.url)).toString('base64');
+const INVITE = (fs.readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').match(/INVITE_CODES=([^,\n]+)/) || [])[1];
 async function call(path, body, creds) {
-  const r = await fetch(BASE + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(creds ? { 'x-quits-pid': creds.pid, 'x-quits-token': creds.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(BASE + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-quits-invite': INVITE, ...(creds ? { 'x-quits-pid': creds.pid, 'x-quits-token': creds.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json(); if (!r.ok) throw new Error(path + ' ' + r.status + ' ' + JSON.stringify(j)); return j;
 }
 async function pay(who, to, asset, amount, memo) {
@@ -31,7 +32,9 @@ for (const n of ['BACALHAU À BRÁS', 'VINHO VERDE GARRAFA', 'COUVERT', 'BICA'])
 for (const n of ['PREGO NO PÃO', 'COUVERT', 'IMPERIAL']) await claim(tom, n);
 for (const c of [host, ana]) await call(`/api/t/${code}/act`, { type: 'ready' }, c);
 r = await call(`/api/t/${code}/act`, { type: 'ready' }, tom);
-console.log('after all ready:', r.s.phase, 'leftover', r.s.leftover);
+console.log('after all ready:', r.s.phase, 'leftover', r.s.leftover, '(the host decides: a round, or closing)');
+if (r.s.phase === 'claiming') r = await call(`/api/t/${code}/act`, { type: 'close' }, host);
+console.log('after the host closes:', r.s.phase);
 // Ana pays through the wallet path (reports the hash)
 r = await call(`/api/t/${code}/act`, { type: 'intent', asset: 'USDC' }, ana);
 const ia = r.s.intents[ana.pid]; console.log('ana owes', ia.amount, ia.asset, 'memo', JSON.stringify(ia.memo));

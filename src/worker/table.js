@@ -274,7 +274,17 @@ export class TableDO extends DurableObject {
 
   allReady() {
     const s = this.s;
-    if (s.phase === 'claiming' && s.order.every(id => s.ready.includes(id))) this.settle();
+    if (s.phase !== 'claiming' || !s.order.every(id => s.ready.includes(id))) return;
+    // Everyone is done. A round in progress decides who pays; if one could still be played, the host decides
+    // between a round and closing the receipt; otherwise the receipt closes itself.
+    if (G.gameActive(s.game)) { s.settleWanted = true; return; }
+    if (this.roundOffered()) return;
+    this.settle();
+  }
+  // A round can still be proposed: rounds are set up, there are at least two people, and this table has not played one.
+  roundOffered() {
+    const s = this.s;
+    return !!G.chainInfo(this.env) && s.order.length >= 2 && !(s.game && s.game.status === 'done');
   }
   settle() {
     const s = this.s;
@@ -287,7 +297,10 @@ export class TableDO extends DurableObject {
   }
   afterGame() {
     const s = this.s;
-    if (!G.gameActive(s.game) && s.settleWanted && s.phase === 'claiming') this.settle();
+    if (G.gameActive(s.game) || s.phase !== 'claiming') return;
+    const everyone = s.order.every(id => s.ready.includes(id));
+    // A finished round closes the receipt if the host asked for it or everyone was done; a cancelled one leaves the host to decide.
+    if (s.game.status === 'done' ? s.settleWanted || everyone : s.settleWanted) this.settle();
   }
   checkSettled() {
     const s = this.s;

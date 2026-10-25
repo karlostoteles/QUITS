@@ -903,18 +903,23 @@ async function onLineTap(e) {
   act('claim', { lid, delta }).catch(() => {});
 }
 function partFoot(ctx, host) {
-  const el = h(`<div class="sheet-foot"><div class="yp"><span class="label">${host ? 'Your part (you paid)' : 'Your part'}</span><b class="yp-v">€0.00</b><span class="yp-s">Tap a line to add it</span></div><button class="btn primary" type="button" data-act="done" disabled>I’m done</button></div>`);
+  const el = h(`<div class="sheet-foot"><div class="yp"><span class="label">${host ? 'Your part (you paid)' : 'Your part'}</span><b class="yp-v">€0.00</b><span class="yp-s">Tap a line to add it</span></div><button class="btn primary" type="button" data-act="done" disabled>I’m done</button><button class="btn ghost foot-close" type="button" data-act="close" hidden>Close the receipt</button></div>`);
   const upd = (animate = true) => {
     if (ctx.dead || !S) return;
     const s = shares(S), me = ME.pid, mt = s.total[me] || 0, n = lines(S).filter(l => (S.claims[l.id] || {})[me]).length;
     const v = $('.yp-v', el); if (animate) roll(v, mt); else setNum(v, mt);
     const bits = []; if (n) bits.push(`${n} thing${n === 1 ? '' : 's'}`); if (s.leftShare[me]) bits.push(`${eur(s.leftShare[me])} leftovers`); if (s.tip[me]) bits.push(`${eur(s.tip[me])} tip`);
     $('.yp-s', el).textContent = bits.length ? bits.join(' · ') : 'Tap a line to add it';
-    const b = $('.btn', el);
-    if (S.phase === 'settling' && !host && gameFree(S, me)) { b.disabled = true; b.dataset.act = 'done'; b.textContent = `${P(S.game.outcome.loser).name} pays`; }
+    const b = $('.btn.primary', el), close = $('.foot-close', el);
+    const everyone = S.phase === 'claiming' && S.order.every(id => S.ready.includes(id));
+    // Everyone is done and a round can still be played: the host picks a round, or closes the receipt.
+    const decide = host && everyone && HEALTH.game && S.order.length >= 2 && !(S.game && S.game.status !== 'cancelled');
+    close.hidden = !decide; el.classList.toggle('decide', !!decide);
+    if (decide) { b.disabled = false; b.dataset.act = 'round'; b.innerHTML = `${ic('fist', 20)}Who pays? Play a round`; $('.yp-s', el).textContent = 'Everyone’s done. Play for the bill, or close it.'; }
+    else if (S.phase === 'settling' && !host && gameFree(S, me)) { b.disabled = true; b.dataset.act = 'done'; b.textContent = `${P(S.game.outcome.loser).name} pays`; }
     else if (S.phase === 'settling' && !host) { b.disabled = !!(S.paid[me]); b.dataset.act = 'pay'; b.textContent = S.paid[me] ? 'Paid' : 'Pay ' + P(S.host).name; }
     else if (S.phase !== 'claiming') { b.disabled = true; b.dataset.act = 'done'; b.textContent = host ? 'All set' : 'Closed'; }
-    else if (S.ready.includes(me)) { const r = S.order.filter(id => S.ready.includes(id)).length; b.disabled = false; b.dataset.act = 'done'; b.textContent = `Waiting · ${r}/${S.order.length}`; }
+    else if (S.ready.includes(me)) { const r = S.order.filter(id => S.ready.includes(id)).length; b.disabled = false; b.dataset.act = 'done'; b.textContent = everyone ? (host ? 'Everyone’s done' : `Everyone’s done · ${P(S.host).name} closes`) : `Waiting · ${r}/${S.order.length}`; }
     else { b.disabled = n === 0 && !host; b.dataset.act = 'done'; b.textContent = 'I’m done'; }
   };
   ['claims', 'ready', 'phase', 'leftover', 'join', 'paid', 'game'].forEach(t => on(t, () => upd(), ctx.bag));

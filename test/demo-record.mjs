@@ -137,6 +137,8 @@ try {
   await tap(guest, '[data-act=done]');
   await wait(900);
   await tap(host, '[data-act=done]');
+  await host.waitForSelector('.sheet-foot .foot-close:not([hidden])', { timeout: 10000 });
+  await tap(host, '.sheet-foot .foot-close');
   await host.waitForFunction(() => document.querySelector('.lv-st') && document.querySelector('.lv-st').textContent === 'Paying back', null, { timeout: 10000 });
   await wait(1800);
   await shot(host, '07-live.png');

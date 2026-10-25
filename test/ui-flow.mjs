@@ -121,6 +121,9 @@ try {
   await tom.click('[data-act=done]');
   await host.waitForTimeout(500);
   await host.click('[data-act=done]');
+  // Everyone is done: the host is offered a round, or closing the receipt. Close it.
+  await host.waitForSelector('.sheet-foot .foot-close:not([hidden])', { timeout: 10000 });
+  await host.click('.sheet-foot .foot-close');
   await host.waitForFunction(() => document.querySelector('.lv-st') && document.querySelector('.lv-st').textContent === 'Paying back', null, { timeout: 10000 });
   await host.waitForTimeout(900);
   await host.shot('08-live-settling');

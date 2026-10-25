@@ -148,6 +148,7 @@ They use Playwright (`npm i -D playwright && npx playwright install chromium`) a
 - `test/auth-unit.mjs`: Google token checks (valid, wrong audience, expired, forged) and sessions.
 - `test/wc-smoke.mjs`: the phone wallet picker (WalletConnect) opens with Stellar wallets only.
 - `test/game-ui.mjs`: a round in three real browsers, from the host's proposal to the loser paying, against the contract on testnet.
+- `test/decide-ui.mjs`: once everyone has tapped "I'm done", the receipt waits for the host, who is offered the round or closing it; a round called off brings the choice back.
 - `test/stale.mjs`: a page left open across a deploy reloads itself when it comes back, and a lazy chunk that vanished mid-form becomes a message instead of a broken button.
 - `test/lobstr-link.mjs`: on a phone, picking LOBSTR in the wallet sheet opens its universal link with the WalletConnect URI (the `lobstr://` scheme opens the app without it on iOS).
 - `test/game-flow.mjs`: the round through the API: forged seals and wrong openings refused, the verdict mirrored, the parts moved to the loser.
