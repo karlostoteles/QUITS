@@ -1500,7 +1500,8 @@ const roundLoser = () => (S.game && S.game.outcome ? S.game.outcome.loser : null
 // What the loser pays on top of their own part: everyone else's, and whose.
 function roundExtra(me) { const p = gamePool(S); if (!p || roundLoser() !== me) return 0; const s = shares(S); return s.total[me] - ((s.items[me] || 0) + (s.leftShare[me] || 0) + (s.tip[me] || 0)); }
 function roundNames(me) { const p = (gamePool(S) || []).filter(id => id !== me).map(id => P(id).name); return p.length > 2 ? `${p.slice(0, 2).join(', ')} and ${p.length - 2} more` : p.join(' and '); }
-const coinsDots = n => `<span class="coins-d" aria-label="${n} coins">${Array.from({ length: 3 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
+const minsLeft = t => { const m = Math.max(0, Math.round((t - Date.now()) / 60000)); return m <= 0 ? 'Less than a minute' : m === 1 ? 'About a minute' : `About ${m} min`; };
+const coinsDots = n = `<span class="coins-d" aria-label="${n} coins">${Array.from({ length: 3 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
 const txA = (tx, label = 'See it on Stellar') => (tx ? `<a class="txlink" href="${esc(S.game.explorer)}/tx/${esc(tx)}" target="_blank" rel="noopener">${label} ${ic('ext', 12)}</a>${S.game.network === 'testnet' ? ' <span class="net">testnet</span>' : ''}` : '');
 
 function roundOutcomeText(g, me) {
@@ -1565,7 +1566,7 @@ function roundView() {
       ${roundPlayersList(g, { moves: true })}
       <p class="gfine">${g.opened[me] ? `${ic('check', 14)}Your move is open${g.opened[me].tx ? ` on Stellar. ${txA(g.opened[me].tx)}` : '…'}` : m.opened ? `<span class="spin"></span>Opening your move…` : `<span class="spin"></span>Your phone opens your move now…`}</p>
       ${errBox(g, host)}
-      <p class="note">Whoever doesn’t open in time loses. The last move to open settles the round.</p>` };
+      <p class="note">${silent.length && g.revealEndsAt ? `${esc(minsLeft(g.revealEndsAt))} left to open; ` : ''}Whoever doesn’t open in time loses. The last move to open settles the round.</p>` };
   }
   if (g.status === 'done' && g.outcome) {
     if (m.seen === g.id) return null;

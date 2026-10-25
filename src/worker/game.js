@@ -8,7 +8,7 @@ import { commitmentOf, sealMessage, hex, unhex, randomBytes, MAX_COINS } from '.
 ed.etc.sha512Sync = (...m) => sha512(ed.etc.concatBytes(...m));
 
 const COMMIT_LEDGERS = 120; // ~10 min before anyone may close the sealing phase on chain
-const REVEAL_LEDGERS = 36; // ~3 min to open a sealed move
+const REVEAL_LEDGERS = 96; // ~8 min to open a sealed move (phones open on their own when the page is open)
 const LEDGER_MS = 5200;
 export const ACTIVE = ['invite', 'sealing', 'opening'];
 export const gameActive = g => !!g && ACTIVE.includes(g.status);
@@ -84,9 +84,12 @@ export async function open(s, pid, coins, guess, salt) {
 }
 
 // Mirrors the contract's view of the round into s.game.
-export function applyChain(g, cg) {
+export function applyChain(g, cg, ledger = 0) {
   if (!cg) return;
-  if (cg.phase === 1 && g.status !== 'opening') { g.status = 'opening'; g.revealUntil = cg.revealUntil; g.active = cg.active.map(i => g.players[i]); }
+  if (cg.phase === 1 && g.status !== 'opening') {
+    g.status = 'opening'; g.revealUntil = cg.revealUntil; g.active = cg.active.map(i => g.players[i]);
+    g.revealEndsAt = Date.now() + Math.max(0, cg.revealUntil - (ledger || cg.revealUntil - REVEAL_LEDGERS)) * LEDGER_MS; // a phone's estimate of the deadline
+  }
   if (cg.phase === 1) g.revealUntil = cg.revealUntil;
   if (cg.phase === 2 && g.status !== 'done' && g.status !== 'cancelled') {
     g.doneAt = Date.now();
@@ -105,7 +108,7 @@ export async function relay(self) {
   if (g.status === 'sealing' && g.pending.seal.length) {
     const pids = g.pending.seal.splice(0);
     const r = await c.commitMany(g.id, pids.map(pid => ({ player: g.keys[pid], commitment: g.sealed[pid].commitment, sig: g.sealed[pid].sig })));
-    if (r.ok) { g.error = null; g.tries = 0; g.txs.seal.push({ tx: r.hash, ledger: r.ledger, pids }); pids.forEach(pid => { g.sealed[pid].tx = r.hash; }); applyChain(g, r.game); }
+    if (r.ok) { g.error = null; g.tries = 0; g.txs.seal.push({ tx: r.hash, ledger: r.ledger, pids }); pids.forEach(pid => { g.sealed[pid].tx = r.hash; }); applyChain(g, r.game, r.ledger); }
     else failed(r, pids, 'seal');
     changed = true;
   }
@@ -142,7 +145,7 @@ export async function close(self, s) {
   const r = await chain(self).close(g.id);
   if (!r.ok) { g.error = r.error; fail(`Stellar did not close the round: ${r.error}`); }
   g.txs.close = { tx: r.hash, ledger: r.ledger };
-  applyChain(g, r.game);
+  applyChain(g, r.game, r.ledger);
 }
 
 const chain = self => self.env.CHAIN.get(self.env.CHAIN.idFromName('chain'));
