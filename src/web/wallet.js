@@ -27,6 +27,22 @@ const STELLAR_WC_WALLETS = [
   '9c78aee7d8a771255942334d06d2cbab89e2178ee49fee4ea3b6c78032fcac76', // Scopuly
 ];
 
+// LOBSTR's registry entry makes AppKit open lobstr://wc?uri=…, which on iOS opens LOBSTR without handing it the
+// connection. Its universal link does: https://lobstr.co/uni/wc?uri=… (the link LOBSTR registered). AppKit opens
+// wallets with window.open(url, '_self'), so the swap happens there.
+const LOBSTR_SCHEME = 'lobstr://wc?uri=', LOBSTR_LINK = 'https://lobstr.co/uni/wc?uri=';
+let patched = false;
+function openLobstrByLink() {
+  if (patched) return;
+  patched = true;
+  const open = window.open.bind(window);
+  window.open = (url, ...rest) => {
+    const u = String(url || '');
+    if (u.startsWith(LOBSTR_SCHEME)) { location.href = LOBSTR_LINK + u.slice(LOBSTR_SCHEME.length); return null; }
+    return open(url, ...rest);
+  };
+}
+
 let kitFor = null; // which set of wallets the kit was started with: 'browser' | 'app'
 
 const passphrase = net => (net === 'public' ? Networks.PUBLIC : Networks.TESTNET);
@@ -53,6 +69,7 @@ async function startKit(health, kind, network) {
     // WalletConnect starts in the background; give it a few seconds.
     for (let i = 0; i < 50 && !(await mod.isAvailable()); i++) await new Promise(r => setTimeout(r, 100));
     if (!(await mod.isAvailable())) fail('Couldn’t reach WalletConnect. Check your connection and try again.');
+    openLobstrByLink();
     modules = [mod];
   } else modules = [new FreighterModule(), new xBullModule(), new LobstrModule(), new AlbedoModule(), new RabetModule(), new HanaModule()];
   StellarWalletsKit.init({ modules, network: passphrase(network), theme: THEME, authModal: { showInstallLabel: true, hideUnsupportedWallets: false } });
