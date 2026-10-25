@@ -25,6 +25,10 @@ At a group dinner one person pays, and then the hard part starts: working out wh
 
 ## Who pays? The round (built at HackMeridian)
 
+[![Demo: a round for the bill](docs/demo-round-teaser.gif)](https://quits.aircade.xyz/demo-round.mp4)
+
+**[Watch the round (105 s)](https://quits.aircade.xyz/demo-round.mp4)** ([file in this repo](src/web/static/demo-round.mp4)): Carlos proposes a round, Ana seals her move, the moves open, the contract names who pays, and Ana pays Carlos back for everyone. Recorded on Stellar testnet with two phones and a third player on the API.
+
 Before paying back, the host can propose a round for the bill. It is *los chinos*, the Spanish bar game, in one simultaneous round:
 
 1. Everyone who is in hides 0–3 coins in a fist and calls the total on the table.

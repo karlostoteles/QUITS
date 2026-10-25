@@ -30,6 +30,8 @@ export class TableDO extends DurableObject {
   }
 
   async commit() {
+    // A counter so phones can tell a fresh state from a late reply that crossed a newer broadcast.
+    this.s.rev = (this.s.rev || 0) + 1;
     await this.ctx.storage.put('state', this.s);
     const full = JSON.stringify({ t: 'state', s: this.s }), open = JSON.stringify({ t: 'state', s: this.pub() });
     for (const ws of this.ctx.getWebSockets()) {

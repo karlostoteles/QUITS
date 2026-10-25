@@ -115,6 +115,7 @@ async function refresh() { if (!CODE) return; try { const j = await api(`/t/${CO
 
 function applyState(ns) {
   if (!ns || ns.code !== CODE) return;
+  if (S && ns.rev && S.rev && ns.rev < S.rev) return; // a late reply; a newer state is already here
   const os = S; S = ns;
   if (ME && ns.people[ME.pid]) rememberNight(ns);
   if (!os) { emit('state'); return; }
@@ -1587,12 +1588,17 @@ const errBox = (g, host) => (g.error ? `<p class="warnbox">Stellar hiccup: ${esc
 
 function gameLayer() {
   const v = roundView(), key = v && `${v.kind}:${v.key}`;
-  if (GL && (!v || GL.key !== key)) { const old = GL; GL = null; gsap.to(old.el, { opacity: 0, y: 12, duration: D(.22), onComplete: () => old.el.remove() }); }
-  if (!v || (GL && GL.key === key)) return;
+  if (!v) { if (GL) { const old = GL; GL = null; gsap.to(old.el, { opacity: 0, y: 12, duration: D(.22), onComplete: () => old.el.remove() }); } return; }
+  if (GL && GL.kind === v.kind) {
+    // same sheet, new contents: swap them in place (no flicker, nothing detaches under a finger)
+    if (GL.key !== key) { GL.key = key; if (v.kind === 'bar') GL.el.innerHTML = v.html; else $('.sheet', GL.el).innerHTML = `<div class="grab"></div>${v.html}`; }
+    return;
+  }
+  if (GL) { GL.el.remove(); GL = null; }
   const el = v.kind === 'bar'
     ? h(`<div class="gbar">${v.html}</div>`)
     : h(`<div class="sheet-wrap glayer"><div class="sheet-dim"></div><div class="sheet game" role="dialog" aria-label="Who pays?"><div class="grab"></div>${v.html}</div></div>`);
-  GL = { el, key };
+  GL = { el, key, kind: v.kind };
   UI.root.insertBefore(el, UI.toasts);
   if (v.kind === 'bar') gsap.from(el, { y: -20, opacity: 0, duration: D(.35), ease: 'power2.out' });
   else { gsap.from($('.sheet-dim', el), { opacity: 0, duration: D(.3) }); gsap.from($('.sheet', el), { yPercent: 110, duration: D(.5), ease: 'power3.out' }); }
