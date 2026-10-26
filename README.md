@@ -4,7 +4,7 @@ Split the bill at the table. One person pays; everyone else taps what they had a
 
 **Live:** https://quits.aircade.xyz, on Stellar mainnet, the round included
 
-**HackMeridian 2026, Genesis path (Stellar Unlocked + Stellar Composed).** Quits arrived at the hackathon as an MVP (everything up to the `pre-hackmeridian` branch); the round, *Who pays?*, was built during the event. **Demo video of the submission: [the round, 105 s](https://quits.aircade.xyz/demo-round.mp4)** (the 90-second video further down shows the app as it was before). To try it: open a table with the invite code `MERIDIAN26`; joining a table needs nothing. [What was built when](#built-when).
+**HackMeridian 2026, Genesis path (Stellar Unlocked + Stellar Composed).** Quits arrived at the hackathon as an MVP (everything up to the `pre-hackmeridian` branch); the round, *Who pays?*, was built during the event. **Demo video of the submission: [the round, 109 s](https://quits.aircade.xyz/demo-round.mp4)** (the 90-second video further down shows the app as it was before). To try it: open a table with the invite code `MERIDIAN26`; joining a table needs nothing. [What was built when](#built-when).
 
 ## The problem
 
@@ -27,7 +27,7 @@ At a group dinner one person pays, and then the hard part starts: working out wh
 
 [![Demo: a round for the bill](docs/demo-round-teaser.gif)](https://quits.aircade.xyz/demo-round.mp4)
 
-**[Watch the round (105 s)](https://quits.aircade.xyz/demo-round.mp4)** ([file in this repo](src/web/static/demo-round.mp4)): Carlos proposes a round, Ana seals her move, the moves open, the contract names who pays, and Ana pays Carlos back for everyone. Recorded on Stellar testnet with two phones and a third player on the API.
+**[Watch the round (109 s)](https://quits.aircade.xyz/demo-round.mp4)** ([file in this repo](src/web/static/demo-round.mp4)): Carlos proposes a round, Ana seals her move, the moves open, the contract names who pays, and Ana pays Carlos back for everyone. Recorded on Stellar testnet with two phones and a third player on the API.
 
 Before paying back, the host can propose a round for the bill. It is *los chinos*, the Spanish bar game, in one simultaneous round:
 

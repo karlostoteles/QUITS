@@ -56,7 +56,7 @@ const STEPS = {
   seal: ['5', 'Ana seals her move', 'A hash signed with a key only her phone has, on a Soroban contract. Nobody sees it until everyone has sealed.'],
   opening: ['6', 'The moves open', 'Each phone opens its move; the contract checks it against the seal.'],
   verdict: ['7', 'The contract decides', 'Furthest from the total pays for everyone who played. Ties are drawn. Silence loses.'],
-  pay: ['8', 'Ana pays Carlos back, for everyone', 'In USDC, from her wallet, on Stellar, with the perk a wallet can attach to this moment. Carlos and Tom are off the hook.'],
+  pay: ['8', 'The onboarding moment', 'Ana picks how to pay Carlos back. From a wallet it lands in seconds, with no fee, and with whatever perk the ecosystem attaches: here, 5% back in USDC. Carlos and Tom are off the hook.'],
   night: ['9', 'The night stays, round included', 'Who had what, the moves, and the transaction that decided it.'],
 };
 const caption = ([n, t, s]) => page(`<div class="dv-cap">${n ? `<span class="dv-step">Step ${n} of 9</span>` : ''}<h1>${t}</h1><p>${s}</p></div>`, `

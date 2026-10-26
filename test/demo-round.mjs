@@ -112,7 +112,7 @@ try {
   await wait(700);
   await host.setInputFiles('#pick-rc', fx('receipt.jpg'));
   await host.waitForSelector('.rcpt.review', { timeout: 30000 });
-  await wait(2400);
+  await wait(3600);
   await tap(host, '[data-act=send]');
 
   // ---- 4. everyone taps what they had ----
@@ -209,8 +209,11 @@ try {
   await wait(900);
   await tap(guest, '[data-act=pay]');
   await guest.waitForSelector('[data-screen=pay]');
-  await wait(2000);
+  await wait(2600);
   await shot(guest, 'r7-pay.png');
+  // let the ways to pay and the perk sink in
+  await guest.evaluate(() => { const n = document.querySelector('.perknote'); if (n) n.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+  await wait(2600);
   await tap(guest, '[data-act=manual]');
   await guest.waitForSelector('.manual .cprow');
   await wait(700);
