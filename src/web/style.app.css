@@ -196,3 +196,8 @@ a.txlink .ic{display:inline-block;vertical-align:-2px;margin-left:3px}
 .wct-links .btn{justify-content:flex-start;font-size:14px;height:46px}
 .wct-qr{width:220px;margin:0 auto;background:#fff;padding:8px;border-radius:12px}
 .wct-qr svg{display:block;width:100%;height:auto}
+/* the demo perk on wallet payments */
+.perkpill{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:rgba(255,228,92,.16);color:#FFE45C;font-size:11px;font-weight:700;letter-spacing:.02em;vertical-align:middle}
+.perknote{display:flex;gap:8px;align-items:flex-start;margin:-4px 0 4px;padding:10px 12px;border-radius:14px;background:rgba(255,228,92,.08);color:var(--muted);font-size:12.5px;line-height:1.4}
+.perknote svg{flex:none;color:#FFE45C;margin-top:2px}
+.perknote b{color:#F7F6F1}

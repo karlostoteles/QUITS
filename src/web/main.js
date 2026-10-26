@@ -16,6 +16,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const later = (ms, fn) => setTimeout(fn, ms);
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// A perk pill on the wallet ways to pay: the moment of paying back is where a wallet's advantage shows (demo, see the pay screen).
+const PERK = '<span class="perkpill">5% back</span>';
 const FRAC = { 2: '½', 3: '⅓', 4: '¼', 5: '⅕', 6: '⅙' };
 
 const ICONS = {
@@ -1217,11 +1219,12 @@ SCREENS.pay = {
         ${S.accept.length > 1 ? `<div class="seg" role="radiogroup" aria-label="Pay in">${S.accept.map(a => `<button type="button" role="radio" data-act="asset" data-asset="${a}" aria-checked="${ctx.asset === a}">${a}<small>${a === 'EURC' ? 'digital euros' : 'digital dollars'}</small></button>`).join('')}</div>` : ''}
         <span class="label">Pay from</span>
         <div class="payopts">
-          ${isMobile ? `<button class="payopt" type="button" data-act="sep7"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>LOBSTR on this phone</b><small>Opens LOBSTR with the amount and the code filled in. You confirm there.</small></span>${ic('chev', 18)}</button>` : ''}
-          ${HEALTH.wc ? `<button class="payopt" type="button" data-act="wallet" data-kind="app"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>${isMobile ? 'Another wallet app on this phone' : 'A wallet app on your phone'}</b><small>${isMobile ? 'Freighter, Scopuly: you approve it there.' : 'Scan with LOBSTR, Freighter or Scopuly.'}</small></span>${ic('chev', 18)}</button>` : ''}
-          ${!isMobile ? `<button class="payopt" type="button" data-act="wallet" data-kind="browser"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>A browser wallet</b><small>Freighter, xBull, LOBSTR extension…</small></span>${ic('chev', 18)}</button>` : ''}
-          <button class="payopt" type="button" data-act="manual"><span class="wal-ic">${ic('send', 20)}</span><span class="wal-t"><b>Send it yourself</b><small>From Decaf, any Stellar wallet or an exchange, with a code.</small></span>${ic('chev', 18)}</button>
+          ${isMobile ? `<button class="payopt" type="button" data-act="sep7"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>LOBSTR on this phone${PERK}</b><small>Opens LOBSTR with the amount and the code filled in. You confirm there.</small></span>${ic('chev', 18)}</button>` : ''}
+          ${HEALTH.wc ? `<button class="payopt" type="button" data-act="wallet" data-kind="app"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>${isMobile ? 'Another wallet app on this phone' : 'A wallet app on your phone'}${PERK}</b><small>${isMobile ? 'Freighter, Scopuly: you approve it there.' : 'Scan with LOBSTR, Freighter or Scopuly.'}</small></span>${ic('chev', 18)}</button>` : ''}
+          ${!isMobile ? `<button class="payopt" type="button" data-act="wallet" data-kind="browser"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>A browser wallet${PERK}</b><small>Freighter, xBull, LOBSTR extension…</small></span>${ic('chev', 18)}</button>` : ''}
+          <button class="payopt" type="button" data-act="manual"><span class="wal-ic">${ic('send', 20)}</span><span class="wal-t"><b>Send it yourself${PERK}</b><small>From Decaf, any Stellar wallet or an exchange, with a code.</small></span>${ic('chev', 18)}</button>
         </div>
+        <p class="perknote">${ic('sparkle', 14)}<span><b>5% back in USDC</b> when you pay from a wallet: the kind of perk a wallet or an issuer can attach to this moment. A demo for now, not paid out yet.</span></p>
         <div class="manual" hidden></div>
         <button class="other" type="button" data-act="cash">${ic('cash', 22)}<div><b>Paid another way?</b><small>Cash, Bizum, MB WAY or card. ${esc(host)} confirms it.</small></div>${ic('chev', 18)}</button>
         <p class="trust">${ic('lock', 16)}<span>Goes straight to ${esc(host)}’s wallet. Quits never holds the money.</span></p>
@@ -1235,7 +1238,7 @@ SCREENS.pay = {
     if (S.intents[ME.pid]) showManual(ctx);
     on('paid', d => { if (d.pid === ME.pid) UI.go('paid', { dir: 'fade' }); }, ctx.bag);
     on('intents', () => { if (ctx.manualOpen) showManual(ctx); }, ctx.bag);
-    if (!RM) gsap.from($$('.payee > *, .brk, .pay-body > .seg, .pay-body > .label, .payopts, .other, .trust', ctx.el), { y: 16, opacity: 0, duration: .45, stagger: .05, ease: 'power3.out', delay: .1 });
+    if (!RM) gsap.from($$('.payee > *, .brk, .pay-body > .seg, .pay-body > .label, .payopts, .perknote, .other, .trust', ctx.el), { y: 16, opacity: 0, duration: .45, stagger: .05, ease: 'power3.out', delay: .1 });
   },
   act: {
     back() { UI.go('claim', { dir: 'back', quiet: true }); },
