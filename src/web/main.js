@@ -1217,7 +1217,8 @@ SCREENS.pay = {
         ${S.accept.length > 1 ? `<div class="seg" role="radiogroup" aria-label="Pay in">${S.accept.map(a => `<button type="button" role="radio" data-act="asset" data-asset="${a}" aria-checked="${ctx.asset === a}">${a}<small>${a === 'EURC' ? 'digital euros' : 'digital dollars'}</small></button>`).join('')}</div>` : ''}
         <span class="label">Pay from</span>
         <div class="payopts">
-          ${HEALTH.wc ? `<button class="payopt" type="button" data-act="wallet" data-kind="app"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>A wallet app on this phone</b><small>LOBSTR, Freighter and others. You approve it there.</small></span>${ic('chev', 18)}</button>` : ''}
+          ${isMobile ? `<button class="payopt" type="button" data-act="sep7"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>LOBSTR on this phone</b><small>Opens LOBSTR with the amount and the code filled in. You confirm there.</small></span>${ic('chev', 18)}</button>` : ''}
+          ${HEALTH.wc ? `<button class="payopt" type="button" data-act="wallet" data-kind="app"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>${isMobile ? 'Another wallet app on this phone' : 'A wallet app on your phone'}</b><small>${isMobile ? 'Freighter, Scopuly: you approve it there.' : 'Scan with LOBSTR, Freighter or Scopuly.'}</small></span>${ic('chev', 18)}</button>` : ''}
           ${!isMobile ? `<button class="payopt" type="button" data-act="wallet" data-kind="browser"><span class="wal-ic">${ic('wallet', 20)}</span><span class="wal-t"><b>A browser wallet</b><small>Freighter, xBull, LOBSTR extension…</small></span>${ic('chev', 18)}</button>` : ''}
           <button class="payopt" type="button" data-act="manual"><span class="wal-ic">${ic('send', 20)}</span><span class="wal-t"><b>Send it yourself</b><small>From Decaf, any Stellar wallet or an exchange, with a code.</small></span>${ic('chev', 18)}</button>
         </div>
@@ -1240,6 +1241,8 @@ SCREENS.pay = {
     back() { UI.go('claim', { dir: 'back', quiet: true }); },
     asset(ctx, b) { if (S.intents[ME.pid] && S.intents[ME.pid].asset !== b.dataset.asset) ctx.manualOpen = false; $$('[data-act=asset]', ctx.el).forEach(x => x.setAttribute('aria-checked', String(x === b))); ctx.asset = b.dataset.asset; ctx.conv(); if (ctx.manualOpen) startManual(ctx); else $('.manual', ctx.el).hidden = true; },
     async manual(ctx, b) { busy(b, true); try { await startManual(ctx); } finally { busy(b, false); } },
+    // LOBSTR opens a SEP-7 payment link with everything filled in; Quits then sees the payment on Horizon by its memo.
+    async sep7(ctx, b) { busy(b, true, 'Opening LOBSTR'); try { await startManual(ctx); location.href = sep7Link(S.intents[ME.pid]); } catch (e) { /* toasted */ } busy(b, false); },
     async check(ctx, b) { busy(b, true, 'Looking on Stellar'); try { await act('check'); if (!S.paid[ME.pid]) UI.toast('<div><b>Not on Stellar yet</b><small>It can take a few seconds. We keep looking.</small></div>', 2600); } catch (e) { /* toasted */ } busy(b, false); },
     async copy(ctx, b) { copyText(b.dataset.v, b); },
     async wallet(ctx, b) {
@@ -1264,19 +1267,23 @@ async function startManual(ctx) {
   if (!cur || cur.asset !== ctx.asset || cur.cents !== (shares(S).total[ME.pid] || 0)) await act('intent', { asset: ctx.asset });
   showManual(ctx);
 }
+// A SEP-7 payment link: LOBSTR (and any wallet that handles web+stellar:) opens its Send screen with it all filled in.
+function sep7Link(it) {
+  const issuer = NETWORKS[S.network].assets[it.asset];
+  return `web+stellar:pay?destination=${S.hostAddress}&amount=${it.amount}&asset_code=${it.asset}&asset_issuer=${issuer}&memo=${encodeURIComponent(it.memo)}&memo_type=MEMO_TEXT`;
+}
 function showManual(ctx) {
   ctx.manualOpen = true;
   const it = S.intents[ME.pid], box = $('.manual', ctx.el); if (!it || !box) return;
   const key = JSON.stringify(it); if (ctx.shownIntent === key && !box.hidden) return; ctx.shownIntent = key;
-  const issuer = NETWORKS[S.network].assets[it.asset];
-  const uri = `web+stellar:pay?destination=${S.hostAddress}&amount=${it.amount}&asset_code=${it.asset}&asset_issuer=${issuer}&memo=${encodeURIComponent(it.memo)}&memo_type=MEMO_TEXT`;
+  const uri = sep7Link(it);
   box.hidden = false;
   box.innerHTML = `<b>Send exactly this</b>
     <div class="cprow"><div><small>To ${esc(P(S.host).name)}’s address</small><b>${esc(S.hostAddress)}</b></div><button type="button" data-act="copy" data-v="${esc(S.hostAddress)}"><span>Copy</span></button></div>
     <div class="cprow"><div><small>Amount</small><b>${esc(it.amount)} ${esc(it.asset)}</b></div><button type="button" data-act="copy" data-v="${esc(it.amount)}"><span>Copy</span></button></div>
     <div class="cprow"><div><small>Memo (the code)</small><b>${esc(it.memo)}</b></div><button type="button" data-act="copy" data-v="${esc(it.memo)}"><span>Copy</span></button></div>
     <p class="warnbox">Don’t forget the memo. It’s how Quits knows the payment is yours. ${it.asset} must be the one issued by Circle.</p>
-    ${isMobile ? `<div class="row2"><a class="btn ghost sm open-wallet" href="https://lobstr.co/uni/open" rel="noopener">${ic('ext', 16)}Open LOBSTR</a><a class="btn ghost sm open-wallet" href="freighterwallet://" rel="noopener">${ic('ext', 16)}Open Freighter</a></div><small class="hint">Copy the three lines, then in your wallet: Send → paste the address, the amount and the memo (the code goes in the memo field).</small>` : `<div class="qr" title="Scan with the wallet on your phone">${qrSVG(uri, 'L')}</div>`}
+    ${isMobile ? `<a class="btn ghost sm open-wallet" href="${esc(uri)}">${ic('ext', 16)}Open LOBSTR with everything filled in</a><small class="hint">Other wallets: Send → paste the address, the amount and the memo (the code goes in the memo field).</small>` : `<div class="qr" title="Scan with the wallet on your phone">${qrSVG(uri, 'L')}</div>`}
     <div class="waiting"><span class="spin"></span><span>Waiting for your payment on Stellar…</span></div>
     <button class="btn ghost" type="button" data-act="check">I’ve sent it</button>`;
   if (!RM) gsap.from(box, { y: 14, opacity: 0, duration: .4, ease: 'power2.out' });
