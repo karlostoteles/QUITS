@@ -4,7 +4,7 @@ Split the bill at the table. One person pays; everyone else taps what they had a
 
 **Live:** https://quits.aircade.xyz, on Stellar mainnet, the round included
 
-**HackMeridian 2026, Genesis path (Stellar Unlocked + Stellar Composed).** Quits arrived at the hackathon as an MVP (everything up to the `pre-hackmeridian` branch); the round, *Who pays?*, was built during the event. [What was built when](#built-when).
+**HackMeridian 2026, Genesis path (Stellar Unlocked + Stellar Composed).** Quits arrived at the hackathon as an MVP (everything up to the `pre-hackmeridian` branch); the round, *Who pays?*, was built during the event. **Demo video of the submission: [the round, 105 s](https://quits.aircade.xyz/demo-round.mp4)** (the 90-second video further down shows the app as it was before). To try it: open a table with the invite code `MERIDIAN26`; joining a table needs nothing. [What was built when](#built-when).
 
 ## The problem
 
