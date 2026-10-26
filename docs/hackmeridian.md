@@ -1,6 +1,6 @@
 # HackMeridian 2026: submission notes for Quits
 
-Scale track (assigned by the organisers from the application), thematic track Stellar Unlocked (a game with real stakes judged by a Soroban contract, on the protocol's own hashing and signature host functions); Stellar Composed is the supporting story (Stellar Wallets Kit + WalletConnect + USDC by Circle + Claude for the receipt). Team: Carlos de la Figuera (solo; the code is written by Claude, declared).
+Genesis path (the portal still shows the Scale field from the original application; the organisers were told in person), thematic track Stellar Unlocked (a game with real stakes judged by a Soroban contract, on the protocol's own hashing and signature host functions); Stellar Composed is the supporting story (Stellar Wallets Kit + WalletConnect + USDC by Circle + Claude for the receipt). Team: Carlos de la Figuera (solo; the code is written by Claude, declared).
 
 ## Answers for the portal
 
