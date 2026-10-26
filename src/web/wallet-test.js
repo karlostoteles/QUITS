@@ -17,9 +17,27 @@ const links = uri => [
   ['H · https://lobstr.co/uni/wc/?uri=', `https://lobstr.co/uni/wc/?uri=${enc(uri)}`],
 ];
 
+// SEP-7 payment links: does LOBSTR open its Send screen prefilled from any of these? (0.01 XLM to Quits's relay account; nothing is sent unless confirmed in the wallet.)
+const RELAY = 'GBCLXIKXD7SKSCNT6MXZY2WOOVQBEI7T4O3NOCWG2BB5FC5QGOSNFF4U';
+const sep7 = `web+stellar:pay?destination=${RELAY}&amount=0.01&memo=${enc('QUITS TEST')}&memo_type=MEMO_TEXT`;
+const q = sep7.slice('web+stellar:pay'.length); // ?destination=…
+const payLinks = [
+  ['P · https://lobstr.co/univ2/pay?…', `https://lobstr.co/univ2/pay${q}`],
+  ['Q · https://lobstr.co/uni/pay?…', `https://lobstr.co/uni/pay${q}`],
+  ['R · web+stellar:pay?… (SEP-7 itself)', sep7],
+  ['S · lobstr://pay?…', `lobstr://pay${q}`],
+  ['T · https://lobstr.co/univ2/?uri=<SEP-7>', `https://lobstr.co/univ2/?uri=${enc(sep7)}`],
+  ['U · https://lobstr.co/uni/?uri=<SEP-7>', `https://lobstr.co/uni/?uri=${enc(sep7)}`],
+  ['V · https://lobstr.co/univ2/tx?uri=<SEP-7>', `https://lobstr.co/univ2/tx?uri=${enc(sep7)}`],
+  ['W · lobstr://sep7?uri=<SEP-7>', `lobstr://sep7?uri=${enc(sep7)}`],
+];
+
 export async function run(el, health, network) {
   const out = el.querySelector('.wct');
   const say = (html) => { out.innerHTML = html; };
+  const pay = el.querySelector('.wct-pay');
+  if (pay) pay.innerHTML = `<p class="sub"><b>Payment links</b> (a prefilled 0.01 XLM payment; nothing moves unless you confirm it in LOBSTR). Which one opens LOBSTR’s Send screen with the amount and memo filled in?</p>
+    <div class="wct-links">${payLinks.map(([label, href]) => `<a class="btn ghost" href="${esc(href)}">${esc(label)}</a>`).join('')}</div>`;
   say('<p>Starting WalletConnect…</p>');
   let client;
   try {

@@ -1526,7 +1526,7 @@ SCREENS.wctest = {
   render() {
     return h(`<section>
       <header class="scr-head"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${ic('back', 22)}</button><span class="head-t">Wallet link test</span></header>
-      <div class="scr-body" style="gap:14px"><p class="sub">Which link opens LOBSTR with the connection request? ${HEALTH.wc ? '' : 'WalletConnect is not set up here.'}</p><div class="wct"></div></div>
+      <div class="scr-body" style="gap:14px"><p class="sub">Which link opens LOBSTR with the connection request? ${HEALTH.wc ? '' : 'WalletConnect is not set up here.'}</p><div class="wct"></div><div class="wct-pay"></div></div>
       <footer class="scr-foot"><button class="btn primary" type="button" data-act="start" ${HEALTH.wc ? '' : 'disabled'}>Make a connection link</button></footer>
     </section>`);
   },
