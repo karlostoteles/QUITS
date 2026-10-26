@@ -51,12 +51,12 @@ const STEPS = {
   intro: ['', 'Carlos paid the bill.', 'Ana and Tom are at the table. Quits splits it. Or they play for it.'],
   open: ['1', 'Carlos opens a table', 'A photo of the place. Ana and Tom scan the QR: no app, no account.'],
   receipt: ['2', 'Carlos snaps the receipt', 'AI reads every line.'],
-  claim: ['3', 'Everyone taps what they had', 'Live for the whole table.'],
+  claim: ['3', 'Everyone taps what they had', 'Live for the whole table. When everyone is done, Carlos chooses: close the receipt, or play for it.'],
   round: ['4', 'Who pays? Carlos proposes a round', 'Hidden coins. Everyone who is in hides 0–3 in a fist and calls the total.'],
   seal: ['5', 'Ana seals her move', 'A hash signed with a key only her phone has, on a Soroban contract. Nobody sees it until everyone has sealed.'],
   opening: ['6', 'The moves open', 'Each phone opens its move; the contract checks it against the seal.'],
   verdict: ['7', 'The contract decides', 'Furthest from the total pays for everyone who played. Ties are drawn. Silence loses.'],
-  pay: ['8', 'Ana pays Carlos back, for everyone', 'In USDC, from her wallet, on Stellar. Carlos and Tom are off the hook.'],
+  pay: ['8', 'Ana pays Carlos back, for everyone', 'In USDC, from her wallet, on Stellar, with the perk a wallet can attach to this moment. Carlos and Tom are off the hook.'],
   night: ['9', 'The night stays, round included', 'Who had what, the moves, and the transaction that decided it.'],
 };
 const caption = ([n, t, s]) => page(`<div class="dv-cap">${n ? `<span class="dv-step">Step ${n} of 9</span>` : ''}<h1>${t}</h1><p>${s}</p></div>`, `

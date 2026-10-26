@@ -132,12 +132,18 @@ try {
   await tap(host, '[data-act=tab][data-tab=mine]');
   await wait(600);
   await line(host, 'POLVO'); await line(host, 'IMPERIAL');
-  await tap(host, '[data-act=tab][data-tab=table]');
-  await wait(1200);
+  await wait(600);
+  // everyone is done: the receipt waits for the host, who picks a round or closes it
+  await tap(guest, '[data-act=done]');
+  await api(`/api/t/${code}/act`, { type: 'ready' }, tom.creds);
+  await wait(700);
+  await tap(host, '[data-act=done]');
+  await host.waitForSelector('.sheet-foot .foot-close:not([hidden])', { timeout: 10000 });
+  await wait(1600);
 
   // ---- 5. who pays? ----
   mark('round');
-  await tap(host, '[data-act=round]');
+  await tap(host, '.sheet-foot .btn.primary[data-act=round]');
   await host.waitForSelector('.sheet.game [data-g=start]');
   await guest.waitForSelector('.sheet.game [data-g=in]', { timeout: 10000 });
   await wait(2600);
@@ -192,7 +198,7 @@ try {
   await tap(host, '.sheet.game [data-g=ok]');
   await tap(guest, '.sheet.game [data-g=ok]');
   await wait(900);
-  await tap(host, '[data-act=close]');
+  // everyone was done, so the finished round closed the receipt by itself
   await host.waitForFunction(() => document.querySelector('.lv-st') && document.querySelector('.lv-st').textContent === 'Paying back', null, { timeout: 10000 });
   await wait(1800);
   await shot(host, 'r6-live.png');
